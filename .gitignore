@@ -16,12 +16,12 @@ tests/**/*.svg
 tests/results.html
 tests/__pycache__
 src/_build
-parser_generator/_build
+alpaga/_build
 grammar.html
 src/generated_parser.ml
 **/*.native
-parser_generator/ml_parser_generator
-parser_generator/ml_parser_generator.native
+alpaga/alpaga
+alpaga/ml_parser_generator.native
 tykernel/*.ast
 tykernel/*.cfg
 tykernel/*.cfg0
