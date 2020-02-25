@@ -1,0 +1,10 @@
+S .
+B _build
+PKG lwt
+PKG lwt.unix
+PKG logs
+PKG logs.lwt
+PKG batteries
+PKG yojson
+PKG websocket
+PKG websocket-lwt-unix

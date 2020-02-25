@@ -1,0 +1,6 @@
+#!/bin/bash
+
+RUNTIME=$(pwd)/runtime
+
+echo "let runtime_dir = \"${RUNTIME}\"" > src/config.ml
+echo "let qemu_path = \"/usr/local/bin/qemu-riscv\"" >> src/config.ml

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+
+<head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <div class="title">
+        <h2>LTL Trace Explorer : <span id="traceName"></span> </h2>
+    </div>
+    <div id="step_navigator">
+        Parameters : <input type="text" id="init_params" />
+        <input type="button" value="Init" id="btn_init" />
+        <input type="button" id="quit_btn" value="Quit" />
+        <input type="button" id="graph_btn" value="Draw graph" />
+        <input type="button" id="prev_bp" value="&#8606;" />
+        &nbsp;
+        <input type="button" id="prev_step" value="&larr;" />
+        &nbsp;
+        <span id="curstep"></span> of <span id="total_num_steps"></span>
+        &nbsp;
+        <input type="button" id="next_step" value=" &rarr;" />
+        &nbsp;
+        <input type="button" id="next_bp" value="&#8608;" />
+        <input type="button" id="play" value="Play" />
+        &nbsp;
+        <input type="button" id="pause" value="Pause" />
+    </div>
+
+    <div id="body">
+
+        <!-- <div id="left"> -->
+     
+        <div id="code"></div>
+        <div id="cfg"><h1>CFG</h1><div id="cfg_cont"></div> </div>
+        <!-- </div> -->
+        <div id="output"></div>
+        <div id="log"></div>
+        <!-- <div id="right-panel"> -->
+        <div id="state">
+            <div id="regstate"></div>
+            <div id="memstate"></div>
+        </div>
+            <div id="expr">
+                <input type="text" id="expr_input" size="30" /><br>
+                Result: <span id="expr_res"></span><hr>
+                <div id="subexprs"></div>
+            </div>
+            <div id="legend">
+                <!-- <h3>Legend</h3>
+                     <h4>State</h4>
+                     <span class="touched">Address written to</span><br>
+                     <span class="read">Address read from</span><br>
+                     <h4>Instructions</h4>
+                     <span class="break">Instruction with breakpoint</span><br>
+                     <span class="current">Instruction to be executed next</span><br>
+                     <span class="break current">Next instruction has a breakpoint</span><br> -->
+                <h4>Vars</h4>
+                <div id="vars"></div>
+                <h4>CFG</h4>
+                <div id="cfg_legend"></div>
+                <h4>Status</h4>
+                <div id="status"></div>
+            </div>
+            <!-- </div> -->
+    </div>
+    <script src="d3.v5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <script src="expr.js"></script>
+    <script src="ldb.js"></script>
+
+</body>
+
+</html>

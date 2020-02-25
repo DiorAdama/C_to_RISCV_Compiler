@@ -1,0 +1,33 @@
+
+let heapsize = ref 10000
+let show_tokens : string option ref = ref None
+let ast_tree : string option ref = ref None
+let ast_dump = ref false
+let e_dump : string option ref = ref None
+let e_run = ref false
+let cfg_dump : string option ref = ref None
+let cfg_run = ref false
+let cfg_run_after_cp = ref false
+let cfg_run_after_dae = ref false
+let cfg_run_after_ne = ref false
+let rtl_dump : string option ref = ref None
+let rtl_run = ref false
+let linear_dump : string option ref = ref None
+let linear_run = ref false
+let linear_run_after_dse = ref false
+let ltl_dump : string option ref = ref None
+let ltl_run = ref false
+let ltl_debug = ref false
+let riscv_dump : string option ref = ref None
+let riscv_run = ref false
+let show = ref false
+let params : int list ref = ref []
+let input_file : string option ref = ref None
+let output_json = ref false
+let nostart = ref false
+let nostats = ref false
+let has_mul = ref true
+let no_dump = ref false
+let no_dot = ref false
+
+let alloc_order_st = ref true

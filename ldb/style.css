@@ -1,0 +1,189 @@
+:root {
+    --bgcolor: white;
+    --textcolor: black;
+    --bordercolor: black;
+    --regbgcolor: #99ccff;
+    --regtextcolor: black;
+    --breakbg: #ff6666;
+    --currentbg: #99ccff;
+    --breakcurrentbg: purple;
+    --touchedbg: green;
+    --touchedfg: white;
+    --readbg: pink;
+    --readfg: red;
+    --highlightedbg: #999900;
+    --expr1bg: #a2b9bc;
+    --expr1fg: black;
+    --expr2bg: #b2ad7f;
+    --expr2fg: black;
+    --expr3bg: #878f99;
+    --expr3fg: white;
+    --expr4bg: #6b5b95;
+    --expr4fg: white;
+}
+
+
+/* :root { */
+/*     --bgcolor: black; */
+/*     --textcolor: white; */
+/*     --bordercolor: white; */
+/*     --regbgcolor: #99ccff; */
+/*     --regtextcolor: purple; */
+/*     --breakbg: #ff6666; */
+/*     --currentbg: #99ccff; */
+/*     --breakcurrentbg: purple; */
+/*     --touchedbg: green; */
+/*     --touchedfg: white; */
+/*     --readbg: pink; */
+/*     --readfg: red; */
+/*     --highlightedbg: #999900; */
+/*     --expr1bg: #a2b9bc; */
+/*     --expr1fg: white; */
+/*     --expr2bg: #b2ad7f; */
+/*     --expr2fg: white; */
+/*     --expr3bg: #878f99; */
+/*     --expr3fg: gray; */
+/*     --expr4bg: #6b5b95; */
+/*     --expr4fg: gray; */
+/*     --codecolor: white; */
+/* } */
+
+html {
+    background: var(--bgcolor);
+    color: var(--textcolor);
+}
+#body{
+    display: grid;
+    grid-template-columns: [ctrl] 300px [code] 250px [outcfg] 600px [state] 700px;
+    grid-template-rows: [row1] 200px [row2] 200px [row3] 400px [row4];
+}
+#code {
+    grid-column-start: code;
+    grid-column-end: code;
+    grid-row-start: row1;
+    grid-row-end: row4;
+    border: 1px solid var(--bordercolor);
+    overflow-y: auto;
+    color: var(--codecolor);
+}
+#output {
+    grid-column-start: outcfg;
+    grid-column-end: outcfg;
+    grid-row-start: row1;
+    grid-row-end: row2;
+    border: 1px solid var(--bordercolor);
+    overflow-y: auto;
+}
+#log {
+    grid-column-start: outcfg;
+    grid-column-end: outcfg;
+    grid-row-start: row2;
+    grid-row-end: row3;
+    border: 1px solid var(--bordercolor);
+    overflow-y: auto;
+}
+#state {
+    grid-column-start: state;
+    grid-column-end: state;
+    grid-row-start: row1;
+    grid-row-end: row4;
+    border: 1px solid var(--bordercolor);
+    overflow-y: auto;
+}
+#expr  {
+    grid-column-start: ctrl;
+    grid-column-end: ctrl;
+    grid-row-start: row1;
+    grid-row-end: row1;
+    border: 1px solid var(--bordercolor);
+}
+#legend{
+    grid-column-start: ctrl;
+    grid-column-end: ctrl;
+    grid-row-start: row2;
+    grid-row-end: row4;
+    border: 1px solid var(--bordercolor);
+}
+#status{
+    font-size: 11pt;
+}
+#step_navigator{
+    /* grid-column-start: ctrl; */
+    /* grid-column-end: ctrl; */
+    /* grid-row-start: row1; */
+    /* grid-row-end: row1; */
+    /* font-size: 20pt; */
+}
+#cfg{
+    grid-column-start: outcfg;
+    grid-column-end: outcfg;
+    grid-row-start: row3;
+    grid-row-end: row4;
+    border: 1px solid var(--bordercolor);
+}
+#cfg_cont{
+    width: 100%;
+    height: 80%;
+    background: #dddddd;
+}
+
+td {
+    width: 40px;
+    text-align: center;
+}
+
+.regname {
+    background: var(--regbgcolor);
+    color: var(--regtextcolor);
+}
+
+
+.break {
+    background: var(--breakbg);
+}
+
+
+.current {
+    background: var(--currentbg);
+}
+
+
+.break.current {
+    background: var(--breakcurrentbg);
+}
+pre{
+    font-size: 10pt;
+    font-family: courier;
+}
+
+.touched {
+    background: var(--touchedbg);
+    color: var(--touchedfg);
+}
+
+.read {
+    background: var(--readbg);
+    color: var(--readfg);
+}
+.highlighted {
+    background: var(--highlightedbg);
+    }
+
+
+.expr1 {
+    background: var(--expr1bg);
+    color: var(--expr1fg);
+}
+.expr2 {
+    background: var(--expr2bg);
+    color: var(--expr2fg);
+}
+.expr3
+{
+    background: var(--expr3bg);
+    color: var(--expr3fg);
+}
+.expr4 {
+    background: var(--expr4bg);
+    color: var(--expr4fg);
+}
