@@ -29,11 +29,4 @@ axiom S
 }
 
 rules
-S -> GLOBDEF SYM_EOF {  Node (Tlistglobdef, [$1]) }
-IDENTIFIER -> SYM_IDENTIFIER {  StringLeaf ($1) }
-INTEGER -> SYM_INTEGER { IntLeaf ($1) }
-GLOBDEF -> IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS INSTR {
-    let fargs = $3 in
-    let instr = $5 in
-    Node (Tfundef, [$1; Node (Tfunargs, fargs) ; instr ])
-}
+S -> GLOBDEF SYM_EOF {  Node (Tlistglobdef, []) }

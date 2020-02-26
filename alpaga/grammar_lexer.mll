@@ -9,6 +9,7 @@ let id = letter (digit|letter|'_')*
 rule token = parse
   | [' ' '\t'] { token lexbuf }
   | "//" { comment lexbuf }
+  | "/*" { comment_multiline lexbuf }
   | '\n' { Lexing.new_line lexbuf; EOL }
   | '{' { action 0 "" lexbuf }
   | "->" { ARROW }
@@ -29,3 +30,7 @@ and action level s = parse
 and comment = parse
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
   | _ { comment lexbuf }
+and comment_multiline = parse
+  | '\n' { Lexing.new_line lexbuf; comment_multiline lexbuf }
+  | "*/" { token lexbuf }
+  | _ { comment_multiline lexbuf }

@@ -19,7 +19,8 @@ let rec make_list l =
 
 (* Return the list of elements of the rule. *)
 let default_action (pl: string list) : string =
-  make_list (List.mapi (fun i e -> i) pl)
+  (* make_list (List.mapi (fun i e -> i) pl) *)
+  "()"
 
 let resolve_vars s =
   Str.global_replace (Str.regexp "\\$\\([0-9]+\\)") "p\\1" s

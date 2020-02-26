@@ -1,6 +1,28 @@
 open Batteries
 open BatPrintf
 
+(* Les AST sont des arbres, du type [tree], étiquetés par des [tag].
+
+   Un arbre [tree] est soit un nœud [Node(t, children)] où [t] est un tag et
+   [children] une liste de sous-arbres ; soit une feuille qui contient une
+   chaîne de caractères ([StringLeaf]), un entier ([IntLeaf]), un caractère
+   ([CharLeaf]), ou rien du tout ([NullLeaf]).
+
+   La signification des différents tags :
+
+   - importe peu : vous pouvez définir de nouveaux types de tags si ça vous
+   semble nécessaire / profitable, pour peu de compléter la fonction
+   [string_of_tag] ci-dessous.
+
+   - devrait être assez claire d'après le nom du tag ou l'utilisation qui en est
+   faite dans l'exemple donné dans le sujet.
+
+   - peut être demandée à votre encadrant de TP favori (ou celui présent en
+   séance, à défaut)
+
+
+*)
+
 type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
          | Tint
          | Tadd | Tmul | Tdiv | Tmod | Txor | Tsub
@@ -9,7 +31,7 @@ type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
          | Tlistglobdef
          | Tfundef | Tfunname | Tfunargs | Tfunbody
          | Tassignvar
-         | Targ | Targs
+         | Targ 
 
 type tree = | Node of tag * tree list
             | StringLeaf of string
@@ -52,9 +74,9 @@ let string_of_tag = function
   | Tfunbody -> "Tfunbody"
   | Tassignvar -> "Tassignvar"
   | Targ -> "Targ"
-  | Targs -> "Targs"
 
-(* return (node, nextnode, dotcode) *)
+
+(* Écrit un fichier .dot qui correspond à un AST *)
 let rec draw_ast a next =
   match a with
   | Node (t, l) ->

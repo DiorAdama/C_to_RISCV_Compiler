@@ -335,7 +335,9 @@ let _ =
             run "LTL" !ltl_run (exec_ltl_prog) ltl;
             (if !ltl_debug then debug_ltl_prog input ltl !heapsize !params);
 
-            dump !riscv_dump dump_riscv_prog ltl (fun file () -> ignore (compile_rv basename file ()));
+            dump !riscv_dump dump_riscv_prog ltl (fun file () ->
+                add_to_report "riscv" "RISC-V" (Code (file_contents file));
+                ignore (compile_rv basename file ()));
             if not !Options.nostart then begin
               run "Risc-V" !riscv_run (exec_rv_prog ltl basename) !riscv_dump
             end;
