@@ -46,7 +46,7 @@ let rec string_of_regexp r =
   | Charset c -> Printf.sprintf "[%s]" (string_of_char_list (Set.to_list c))
   | Alt (r1,r2) -> Printf.sprintf "(%s)|(%s)"
                      (string_of_regexp r1) (string_of_regexp r2)
-  | Cat (r1,r2) -> Printf.sprintf "(%s)(%s)"
+  | Cat (r1,r2) -> Printf.sprintf "(%s).(%s)"
                      (string_of_regexp r1) (string_of_regexp r2)
   | Star r -> Printf.sprintf "(%s)*" (string_of_regexp r)
 

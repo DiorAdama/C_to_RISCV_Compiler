@@ -19,6 +19,7 @@ src/_build
 alpaga/_build
 grammar.html
 src/generated_parser.ml
+src/config.ml
 **/*.native
 alpaga/ml_parser_generator
 alpaga/alpaga

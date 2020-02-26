@@ -13,6 +13,10 @@ all: $(TG)
 $(TG): $(SRC)
 	ocamlbuild -cflags -warn-error,"+a-26" -use-ocamlfind $(TG)
 
+test_lexer: $(SRC)
+	ocamlbuild -use-ocamlfind test_lexer.native
+	./test_lexer.native
+
 clean:
 	rm -rf _build
 	rm -f config.ml main.native

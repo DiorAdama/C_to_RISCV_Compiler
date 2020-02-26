@@ -332,6 +332,30 @@ let rec tokenize_all (d: dfa) (w: char list) : (token list * char list) =
 
 (* Fonctions d'affichage - Utile pour déboguer *)
 
+
+let char_list_to_char_ranges s =
+  let rec recognize_range (cl: int list) l opt_c n =
+    match cl with
+    | [] -> (match opt_c with
+          None -> l
+        | Some c -> l @ [(c,n)]
+      )
+    | c::r -> (match opt_c with
+        | None -> recognize_range r l (Some c) 0
+        | Some c' ->
+          if c' + n + 1 = c
+          then recognize_range r l (Some c') (n + 1)
+          else recognize_range r ((c',n)::l) (Some c) 0
+      )
+  in
+  let l = recognize_range (List.sort Stdlib.compare (List.map Char.code s)) [] None 0 in
+  List.fold_left (fun acc (c,n) ->
+      if n = 0
+      then Printf.sprintf "%c%s" (Char.chr c) acc
+      else Printf.sprintf "%c-%c%s" (Char.chr c) (Char.chr (c + n)) acc
+    ) "" l
+
+
 (* Affichage d'un NFA *)
 let nfa_to_string (n : nfa) : string =
   Printf.sprintf "===== NFA\nStates : %s\nInitial states : %s\nFinal states : %s\n%s"
@@ -347,6 +371,24 @@ let nfa_to_string (n : nfa) : string =
                      q'
                  ) l)
           ) n.nfa_states))
+
+let nfa_to_dot oc (n : nfa) : unit =
+  Printf.fprintf oc "digraph {\n";
+  List.iter (fun n -> Printf.fprintf oc "N%d [shape=\"house\" color=\"red\"]\n" n) (n.nfa_initial);
+  List.iter (fun (q,t) ->
+      Printf.fprintf oc "N%d [shape=\"rectangle\", label=\"%s\"]\n"
+        q (match t "0" with | Some s -> string_of_symbol s | None -> "" )) n.nfa_final;
+  List.iter (fun q ->
+      List.iter (fun (cso, q') ->
+          match cso with
+          | None ->
+            Printf.fprintf oc "N%d -> N%d [label=\"[epsilon]\"]\n" q q'
+          | Some cs ->
+            Printf.fprintf oc "N%d -> N%d [label=\"[%s]\"]\n" q q' (char_list_to_char_ranges (Set.to_list cs))
+        ) (n.nfa_step q);
+    ) n.nfa_states;
+  Printf.fprintf oc "}\n"
+
 
 (* Affichage d'un DFA *)
 let dfa_to_string (n : dfa) (alphabet: char list): string =
@@ -372,28 +414,6 @@ let dfa_to_string (n : dfa) (alphabet: char list): string =
    convertir en pdf avec la commande 'dot fichier.dot -Tsvg -o fichier.svg' ou
    bien en copiant le code DOT dans un convertisseur en ligne (par exemple :
    http://proto.informatics.jax.org/prototypes/dot2svg/). *)
-
-let char_list_to_char_ranges s =
-  let rec recognize_range (cl: int list) l opt_c n =
-    match cl with
-    | [] -> (match opt_c with
-          None -> l
-        | Some c -> l @ [(c,n)]
-      )
-    | c::r -> (match opt_c with
-        | None -> recognize_range r l (Some c) 0
-        | Some c' ->
-          if c' + n + 1 = c
-          then recognize_range r l (Some c') (n + 1)
-          else recognize_range r ((c',n)::l) (Some c) 0
-      )
-  in
-  let l = recognize_range (List.sort Stdlib.compare (List.map Char.code s)) [] None 0 in
-  List.fold_left (fun acc (c,n) ->
-      if n = 0
-      then Printf.sprintf "%c%s" (Char.chr c) acc
-      else Printf.sprintf "%c-%c%s" (Char.chr c) (Char.chr (c + n)) acc
-    ) "" l
 
 let dfa_to_dot oc (n : dfa) (cl: char list): unit =
   Printf.fprintf oc "digraph {\n";
