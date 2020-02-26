@@ -251,3 +251,29 @@ let assoc_err ?word:(word="item") k l =
   | Some v -> OK v
   | None -> Error (Format.sprintf "%s %s not found." word k)
 
+
+let remove_dups l : 'a list =
+  List.fold_left (fun acc elt -> if List.mem elt acc then acc else elt::acc) [] l
+
+let rec take n l =
+  if n = 0 then []
+  else match l with
+    | [] -> []
+    | a::r -> a::take (n-1) r
+
+let char_list_of_string l : char list =
+  String.to_list l
+
+let string_of_char_list cl =
+  String.of_list cl
+
+let string_of_char_set s =
+  string_of_char_list (Set.to_list s)
+
+let string_of_int_list l =
+  Printf.sprintf "%s" (String.concat "_" (List.map string_of_int l))
+
+let string_of_int_set s =
+  string_of_int_list (Set.to_list s)
+
+

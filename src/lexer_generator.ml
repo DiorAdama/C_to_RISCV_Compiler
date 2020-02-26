@@ -2,79 +2,9 @@ open Batteries
 open BatList
 open Symbols
 open Utils
+open E_regexp
 
 type 'a set = 'a Set.t
-
-let remove_dups l : 'a list =
-  List.fold_left (fun acc elt -> if List.mem elt acc then acc else elt::acc) [] l
-
-let rec take n l =
-  if n = 0 then []
-  else match l with
-    | [] -> []
-    | a::r -> a::take (n-1) r
-
-let char_list_of_string l : char list =
-  String.to_list l
-
-let string_of_char_list cl =
-  String.of_list cl
-
-let string_of_char_set s =
-  string_of_char_list (Set.to_list s)
-
-let string_of_int_list l =
-  Printf.sprintf "%s" (String.concat "_" (List.map string_of_int l))
-
-let string_of_int_set s =
-  string_of_int_list (Set.to_list s)
-
-(* Expressions régulières *)
-
-(* Nous modélisons les expressions régulières avec le type suivant.
-
-   Une expressions régulière est soit :
-   - [Eps] qui dénote l'expressions vide.
-   - [Charset cs] dénote l'expression régulière qui matche l'ensemble
-     des caractères de l'ensemble [cs].
-   - [Cat(r1,r2)] dénote la concaténation de [r1] et [r2] : reconnaît les mots
-     [uv] tels que [u] appartient à [r1] et [v] appartient à [r2].
-   - [Alt(r1,r2)] dénote un choix entre [r1] et [r2] : reconnaît les mots reconnus
-     par [r1] et les mots reconnus par [r2].
-   - [Star r] dénote la répétition 0, 1 ou plusieurs fois de l'expression [r].
-*)
-
-type regexp =
-  | Eps
-  | Charset of char set
-  | Cat of regexp * regexp
-  | Alt of regexp * regexp
-  | Star of regexp
-
-(* [char_regexp c] reconnaît le caractère [c] uniquement. *)
-let char_regexp c = Charset (Set.singleton c)
-
-(* [char_range l] reconnaît l'ensemble des caractères de [l]. *)
-let char_range (l: char list) =
-  Charset (Set.of_list l)
-
-(* [str_regexp s] reconnaît la chaîne de caractère [s]. *)
-let str_regexp (s: char list) =
-  List.fold_right (fun c reg -> Cat(Charset (Set.singleton c), reg)) s Eps
-
-(* [plus r] reconnaît 1 fois ou plus l'expression [r]. *)
-let plus r = Cat(r,Star r)
-
-(* Fonction d'affichage. Peut être utile pour déboguer. *)
-let rec string_of_regexp r =
-  match r with
-    Eps -> "Eps"
-  | Charset c -> Printf.sprintf "[%s]" (string_of_char_list (Set.to_list c))
-  | Alt (r1,r2) -> Printf.sprintf "(%s)|(%s)"
-                     (string_of_regexp r1) (string_of_regexp r2)
-  | Cat (r1,r2) -> Printf.sprintf "(%s)(%s)"
-                     (string_of_regexp r1) (string_of_regexp r2)
-  | Star r -> Printf.sprintf "(%s)*" (string_of_regexp r)
 
 (* Non-deterministic Finite Automata (NFA) *)
 
@@ -115,33 +45,40 @@ let empty_nfa =
 
 (* Concaténation de NFAs.  *)
 let cat_nfa n1 n2 =
+   (* TODO *)
    empty_nfa
 
+(* Alternatives de NFAs *)
 let alt_nfa n1 n2 =
+   (* TODO *)
    empty_nfa
 
+(* Répétition de NFAs *)
+(* t est de type [string -> token option] *)
 let star_nfa n t =
+   (* TODO *)
    empty_nfa
 
 
-(* [nfa_of_regexp r firststate t] construit un NFA qui reconnaît le même langage
+(* [nfa_of_regexp r freshstate t] construit un NFA qui reconnaît le même langage
    que l'expression régulière [r].
-
-   Pour ce faire, vous allez devoir générer des noms d'états pour vos automates.
-   Le paramètre [firststate]
+   [freshstate] correspond à un entier pour lequel il n'y a pas encore d'état dans 
+   le nfa. Il suffit d'incrémenter [freshstate] pour obtenir de nouveaux état non utilisés.
+   [t] est une fonction du type [string -> token option] utile pour les état finaux.
 *)
-let rec nfa_of_regexp r firststate t =
+let rec nfa_of_regexp r freshstate t =
   match r with
-  | Eps -> { nfa_states = [firststate];
-             nfa_initial = [firststate];
-             nfa_final = [(firststate,t)];
-             nfa_step = fun q -> []}, firststate + 1
-  | Charset c -> { nfa_states = [firststate; firststate + 1];
-                nfa_initial = [firststate];
-                nfa_final = [firststate + 1, t];
-                nfa_step = fun q -> if q = firststate then [(Some c, firststate + 1)] else []
-              }, firststate + 2
-   | _ -> empty_nfa, firststate
+  | Eps -> { nfa_states = [freshstate];
+             nfa_initial = [freshstate];
+             nfa_final = [(freshstate,t)];
+             nfa_step = fun q -> []}, freshstate + 1
+  | Charset c -> { nfa_states = [freshstate; freshstate + 1];
+                nfa_initial = [freshstate];
+                nfa_final = [freshstate + 1, t];
+                nfa_step = fun q -> if q = freshstate then [(Some c, freshstate + 1)] else []
+              }, freshstate + 2
+   (* TODO *)
+   | _ -> empty_nfa, freshstate
 
 (* Deterministic Finite Automaton (DFA) *)
 
@@ -182,6 +119,7 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
   (* La fonction [traversal visited s] effectue un parcours de l'automate en
      partant de l'état [s], et en suivant uniquement les epsilon-transitions. *)
   let rec traversal (visited: nfa_state set) (s: nfa_state) : nfa_state set =
+         (* TODO *)
          visited
   in
   traversal Set.empty s
@@ -189,10 +127,12 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
 (* [epsilon_closure_set n ls] calcule l'union des epsilon-fermeture de chacun
    des états du NFA [n] dans l'ensemble [ls]. *)
 let epsilon_closure_set (n: nfa) (ls: nfa_state set) : nfa_state set =
+   (* TODO *)
    ls
 
 (* [dfa_initial_state n] calcule l'état initial de l'automate déterminisé. *)
 let dfa_initial_state (n: nfa) : dfa_state =
+   (* TODO *)
    Set.empty
 
 (* Construction de la table de transitions de l'automate DFA. *)
@@ -212,7 +152,7 @@ let dfa_initial_state (n: nfa) : dfa_state =
      [(c1,q1);(c1,q2);...;(c1,qn);(c2,q'1);...(c2,q'm)] ->
      [(c1,{q1,q2,...,qn});(c2,{q'1,...,q'm})] : [assoc_merge_vals]
    - on applique la epsilon-fermeture sur tous les états:
-     [(c1,q1);...;(cn,qn)] -> [(c1, eps(q1)); ...; (cn, eps(qn))] :
+     [(c1,{q1,q2,...,qn});...;(cn,{qn}])] -> [(c1, eps({q1,q2,...,qn})); ...; (cn, eps({qn}))] :
      [epsilon_closure_set]
 
    On obtient alors l'ensemble des transitions depuis l'état [q] dans
@@ -228,6 +168,11 @@ let assoc_throw_none (l : ('a option * 'b) list) : ('a * 'b) list =
       | Some x -> Some (x,n)
     ) l
 
+let assoc_distribute_key (l : ('a set * 'b) list) : ('a * 'b) list =
+  List.fold_left (fun (acc : ('a * 'b) list) (k, v) ->
+      Set.fold (fun c acc -> (c, v)::acc) k acc)
+    [] l
+
 let assoc_merge_vals (l : ('a * 'b) list) : ('a * 'b set) list =
   List.fold_left (fun (acc : ('a * 'b set) list) (k, v) ->
       match List.assoc_opt k acc with
@@ -235,19 +180,16 @@ let assoc_merge_vals (l : ('a * 'b) list) : ('a * 'b set) list =
       | Some vl -> (k, Set.add v vl)::List.remove_assoc k acc
     ) [] l
 
-let assoc_distribute_key (l : ('a set * 'b) list) : ('a * 'b) list =
-  List.fold_left (fun (acc : ('a * 'b) list) (k, v) ->
-      Set.fold (fun c acc -> (c, v)::acc) k acc)
-    [] l
-
-
 let rec build_dfa_table (table: (dfa_state, (char * dfa_state) list) Hashtbl.t)
     (n: nfa)
     (ds: dfa_state) : unit =
   match Hashtbl.find_option table ds with
   | Some _ -> ()
   | None ->
+    (* [transitions] contient les transitions du DFA construites
+     * à partir des transitions du NFA comme décrit auparavant *)
     let transitions : (char * dfa_state) list =
+         (* TODO *)
          []
       in
     Hashtbl.replace table ds transitions;
@@ -283,12 +225,14 @@ let priority t =
 (* [min_priority l] renvoie le token de [l] qui a la plus petite priorité, ou
    [None] si la liste [l] est vide. *)
 let min_priority (l: token list) : token option =
+   (* TODO *)
    None
 
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)
 let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
   (dfa_state * (string -> token option)) list  =
+   (* TODO *)
    []
 
 (* Construction de la relation de transition du DFA. *)
@@ -297,6 +241,7 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
    est la table générée par [build_dfa_table], définie ci-dessus. *)
 let make_dfa_step (table: (dfa_state, (char * dfa_state) list) Hashtbl.t) =
   fun (q: dfa_state) (a: char) ->
+   (* TODO *)
    None
 
 (* Finalement, on assemble tous ces morceaux pour construire l'automate. La
@@ -473,98 +418,10 @@ let dfa_to_dot oc (n : dfa) (cl: char list): unit =
     ) n.dfa_states;
   Printf.fprintf oc "}\n"
 
-
-
 let alts l =
   match l with
     [] -> Eps
   | a::r -> List.fold_left (fun acc r -> Alt(acc,r)) a l
-
-let list_regexp =
-  let lowercase_letters = "abcdefghijklmnopqrstuvwxyz" in
-  let uppercase_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" in
-  let digits = "0123456789" in
-  let other_characters = "?!=<>_ ;,{}()[]-+*/%\n\t" in
-  let alphabet = char_list_of_string (lowercase_letters ^ uppercase_letters ^ digits ^ other_characters) in
-  let letter_regexp = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters)) in
-  let digit_regexp = char_range (char_list_of_string digits) in
-  let keyword_regexp s = str_regexp (char_list_of_string s) in
-  [
-    (keyword_regexp "while",    fun s -> Some (SYM_WHILE));
-    (keyword_regexp "int", fun s -> Some (SYM_INT));
-    (keyword_regexp "void",     fun s -> Some (SYM_VOID));
-    (keyword_regexp "char",     fun s -> Some (SYM_CHAR));
-    (keyword_regexp "if",       fun s -> Some (SYM_IF));
-    (keyword_regexp "else",     fun s -> Some (SYM_ELSE));
-    (keyword_regexp "return",   fun s -> Some (SYM_RETURN));
-    (keyword_regexp "print",    fun s -> Some (SYM_PRINT));
-    (keyword_regexp "struct",   fun s -> Some (SYM_STRUCT));
-    (keyword_regexp ".",        fun s -> Some (SYM_POINT));
-    (keyword_regexp "+",        fun s -> Some (SYM_PLUS));
-    (keyword_regexp "-",        fun s -> Some (SYM_MINUS));
-    (keyword_regexp "*",        fun s -> Some (SYM_ASTERISK));
-    (keyword_regexp "/",        fun s -> Some (SYM_DIV));
-    (keyword_regexp "%",        fun s -> Some (SYM_MOD));
-    (keyword_regexp "{",        fun s -> Some (SYM_LBRACE));
-    (keyword_regexp "}",        fun s -> Some (SYM_RBRACE));
-    (keyword_regexp "[",        fun s -> Some (SYM_LBRACKET));
-    (keyword_regexp "]",        fun s -> Some (SYM_RBRACKET));
-    (keyword_regexp "(",        fun s -> Some (SYM_LPARENTHESIS));
-    (keyword_regexp ")",        fun s -> Some (SYM_RPARENTHESIS));
-    (keyword_regexp ";",        fun s -> Some (SYM_SEMICOLON));
-    (keyword_regexp ",",        fun s -> Some (SYM_COMMA));
-    (keyword_regexp "=",        fun s -> Some (SYM_ASSIGN));
-    (keyword_regexp "==",       fun s -> Some (SYM_EQUALITY));
-    (keyword_regexp "!=",       fun s -> Some (SYM_NOTEQ));
-    (keyword_regexp "<",        fun s -> Some (SYM_LT));
-    (keyword_regexp ">",        fun s -> Some (SYM_GT));
-    (keyword_regexp "<=",       fun s -> Some (SYM_LEQ));
-    (keyword_regexp ">=",       fun s -> Some (SYM_GEQ));
-    (Cat(letter_regexp,
-         Star(Alt(letter_regexp,
-                  Alt(digit_regexp,
-                      Charset (Set.singleton '_'))))),
-     fun s -> Some (SYM_IDENTIFIER s));
-    (Cat(keyword_regexp "//",
-         Cat(Star (char_range (List.filter (fun c -> c <> '\n') alphabet)),
-             Alt (char_regexp '\n', Eps))),
-     fun s -> None);
-    (Cat(keyword_regexp "/*",
-         Cat(
-           Star (Alt (char_range (List.filter (fun c -> c <> '*') alphabet),
-                      Cat (char_regexp '*',
-                           char_range (List.filter (fun c -> c <> '/') alphabet)))),
-           keyword_regexp "*/")),
-     fun s -> None);
-    (Cat (char_regexp '\'',
-          Cat (char_range (List.filter (fun c -> c <> '\'' && c <> '\\') alphabet),
-               char_regexp '\'')),
-     fun s -> Some (SYM_CHARACTER (String.get s 1)));
-    (Cat (char_regexp '\'', Cat (char_regexp '\\',
-          Cat (char_range (char_list_of_string "\\tn0"),
-               char_regexp '\''))),
-     fun s -> match String.get s 2 with
-         | '\\' -> Some (SYM_CHARACTER '\\')
-         | 'n' -> Some (SYM_CHARACTER '\n')
-         | 't' -> Some (SYM_CHARACTER '\t')
-         | '0' -> Some (SYM_CHARACTER '\x00')
-         | _ -> None
-    );
-    (Cat (char_regexp '"',
-          Cat (Star (
-              Alt (
-                char_range (List.filter (fun c -> c <> '"' && c <> '\\') alphabet),
-                Cat (char_regexp '\\', char_range (char_list_of_string "tn0\\\""))
-              )
-            ),
-               char_regexp '"')),
-     fun s -> Some (SYM_STRING (Stdlib.Scanf.unescaped (String.slice ~first:1 ~last:(-1) s))));
-    (char_regexp ' ', fun s -> None);
-    (char_regexp '\n', fun s -> None);
-    (char_regexp '\t', fun s -> None);
-    (plus digit_regexp, fun s -> Some (SYM_INTEGER (int_of_string s)));
-    (Eps, fun s -> Some (SYM_EOF))
-  ]
 
 let nfa_of_list_regexp l =
   let (n, fs) = List.fold_left (fun (nfa, fs) (r,t) ->
