@@ -6,10 +6,10 @@ Le format d'entrée (simple) est le suivant :
 
 Premièrement, on définit les terminaux du langage :
 
-```
+'''
 tokens SYM_EOF SYM_IF SYM_IDENTIFIER<string> SYM_INTEGER<int> SYM_PLUS SYM_MINUS
 tokens SYM_ASTERISK SYM_DIV
-```
+'''
 
 Les "SYM_XXX" correspondent aux symboles définis dans src/symbols.ml
 
@@ -18,44 +18,41 @@ caractères ou un entier, n indique son type entre chevrons < et >.
 
 Ensuite, on définit les non-terminaux du langage :
 
-
-```
+'''
 non-terminals S EXPR TERM FACTOR
 non-terminals EXPRS TERMS
-```
+'''
 
 Puis le non-terminal distingué qui sert d'axiome à la grammaire :
 
-```
+'''
 axiom S
-```
+'''
 
 Ensuite le mot clé 'rules' indique le début des règles de la grammaire
 
-```
-rules
-```
+'''rules'''
 
 Une règle est simplement de la forme 'N -> SYM_TRUC AUTRE_NON_TERMINAL SYM_MACHIN'
 
 Par exemple,
 
-```
+'''
 S -> EXPR SYM_EOF
 EXPR ->  TERM EXPRS
 EXPRS -> SYM_PLUS TERM EXPRS
 EXPRS -> SYM_MINUS TERM EXPRS
 EXPRS ->
-```
+'''
 
 La dernière ligne de cette grammaire indique une règle qui produit le mot vide
 (Epsilon) pour le non-terminal EXPRS.
 
 Vous pouvez lancer ALPAGA avec la commande suivante :
 
-```
+'''
 ./ml_parser_generator -g <votre_fichier_de_grammaire.g> -t <table.html>
-```
+'''
 
 Cela va analyser votre grammaire et produire un fichier HTML, que vous pouvez
 ouvrir avec un navigateur web, et qui contient les tables Null, First et Follow
@@ -93,7 +90,7 @@ arbre de syntaxe abstraite. Pour ce faire, vous avez deux choses à faire :
   Le code que vous écrivez correspond donc à la construction d'un terme OCaml.
   
   Par exemple, le morceau suivant vous est fourni :
-  ```
+  '''
   S -> GLOBDEF SYM_EOF {  Node (Tlistglobdef, [$1]) }
   IDENTIFIER -> SYM_IDENTIFIER {  StringLeaf ($1) }
   INTEGER -> SYM_INTEGER { IntLeaf ($1) }
@@ -102,7 +99,7 @@ arbre de syntaxe abstraite. Pour ce faire, vous avez deux choses à faire :
       let instr = $5 in
       Node (Tfundef, [$1; Node (Tfunargs, fargs) ; instr ])
   }
-  ```
+  '''
   
   Pour une règle X -> w1 w2 ... wn, les variables $i correspondent aux actions
   générées par le symbole wi. Par exemple, dans l'action de la première règle,
@@ -112,9 +109,9 @@ arbre de syntaxe abstraite. Pour ce faire, vous avez deux choses à faire :
   
   Ces actions vont servir à générer le parser, ce qui se fera avec la commande :
   
-  ```
-  ./ml_parser_generator -g <votre_fichier_de_grammaire.g> -t <table.html> -pml <generated_parser.ml>
-  ```
+  '''
+./ml_parser_generator -g <votre_fichier_de_grammaire.g> -t <table.html> -pml <generated_parser.ml>
+  '''
   
   ce qui créera le fichier <generated_parser.ml> à l'endroit où vous l'avez
   indiqué.
