@@ -82,13 +82,13 @@ arbre de syntaxe abstraite. Pour ce faire, vous avez deux choses à faire :
   accolades, qui sera copié au début du code source généré pour l'analyseur
   syntaxique. (en fait dans le squelette qui vous est fourni, ce bloc de code
   est déjà présent, et vous n'avez qu'à le remplir.)
-  
+
 - après chaque règle 'X -> w1 w2 ... wn', ajoutez du code entre accolades qui
   construit le sous-arbre correspondant à la dérivation effectuée par cette
   règle. On appelle ce code une **action**.
-  
+
   Le code que vous écrivez correspond donc à la construction d'un terme OCaml.
-  
+
   Par exemple, le morceau suivant vous est fourni :
   '''
   S -> GLOBDEF SYM_EOF {  Node (Tlistglobdef, [$1]) }
@@ -100,22 +100,22 @@ arbre de syntaxe abstraite. Pour ce faire, vous avez deux choses à faire :
       Node (Tfundef, [$1; Node (Tfunargs, fargs) ; instr ])
   }
   '''
-  
+
   Pour une règle X -> w1 w2 ... wn, les variables $i correspondent aux actions
   générées par le symbole wi. Par exemple, dans l'action de la première règle,
   la variable $1 correspond à l'arbre rendu par le non-terminal GLOBDEF.
-  
+
   Les définitions des arbres et nœuds sont trouvées dans le fichier src/ast.ml.
-  
+
   Ces actions vont servir à générer le parser, ce qui se fera avec la commande :
-  
+
   '''
 ./ml_parser_generator -g <votre_fichier_de_grammaire.g> -t <table.html> -pml <generated_parser.ml>
   '''
-  
-  ce qui créera le fichier <generated_parser.ml> à l'endroit où vous l'avez
+
+  Cela créera le fichier <generated_parser.ml> à l'endroit où vous l'avez
   indiqué.
-  
+
   En fait, les différents Makefile de ce projet font que vous n'aurez
   normalement pas à écrire cette commande à la main : un simple 'make test' à la
   racine de ce projet devrait faire tout ce dont vous avez besoin.

@@ -5,11 +5,11 @@ tokens SYM_EQUALITY SYM_NOTEQ SYM_LT SYM_LEQ SYM_GT SYM_GEQ
 non-terminals S INSTR INSTRS LINSTRS ELSE EXPR FACTOR
 non-terminals LPARAMS REST_PARAMS
 non-terminals IDENTIFIER INTEGER
-non-terminals GLOBDEF
+non-terminals FUNDEF FUNDEFS
 non-terminals ADD_EXPRS ADD_EXPR
 non-terminals MUL_EXPRS MUL_EXPR
 non-terminals CMP_EXPRS CMP_EXPR
-non-terminals REQ_EXPRS REQ_EXPR
+non-terminals EQ_EXPRS EQ_EXPR
 axiom S
 {
 
@@ -29,4 +29,4 @@ axiom S
 }
 
 rules
-S -> GLOBDEF SYM_EOF {  Node (Tlistglobdef, []) }
+S -> FUNDEFS SYM_EOF {  Node (Tlistglobdef, []) }
