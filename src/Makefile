@@ -11,7 +11,7 @@ TG = main.native
 all: $(TG)
 
 $(TG): $(SRC)
-	ocamlbuild -cflags -warn-error,"+a-26" -use-ocamlfind $(TG)
+	ocamlbuild -cflags  -warn-error,"+a-26" -cflags -w,"-26" -use-ocamlfind $(TG)
 
 test_lexer: $(SRC)
 	ocamlbuild -use-ocamlfind test_lexer.native

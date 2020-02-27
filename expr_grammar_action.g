@@ -14,11 +14,11 @@ axiom S
 {
 
   open Symbols
-  open Utils
   open Ast
   open BatPrintf
   open BatBuffer
   open Batteries
+  open Utils
 
   (* TODO *)
   let resolve_associativity term other =
