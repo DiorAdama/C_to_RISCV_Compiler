@@ -26,6 +26,29 @@ type cfg_fun = {
 type cprog = cfg_fun prog
 
 
+(* [succs cfg n] gives the successors of a node [n] in a CFG [cfg]. *)
+let succs cfg n =
+  match Hashtbl.find_option cfg n with
+  | None -> []
+  | Some (Cprint (_, s))
+  | Some (Cassign (_, _, s)) -> [s]
+  | Some (Creturn _) -> []
+  | Some (Ccmp (_, s1, s2)) -> [s1;s2]
+  | Some (Cnop s) -> [s]
+
+
+(* [preds n] gives the list of predecessors of a node [n]. *)
+let preds cfgfunbody n =
+  Hashtbl.fold (fun m m' acc ->
+      match m' with
+      | Cassign (_, _, s)
+      | Cprint (_, s)
+      | Cnop s -> if s = n then Set.add m acc else acc
+      | Creturn _ -> acc
+      | Ccmp (_, s1, s2) -> if s1 = n || s2 = n then Set.add m acc else acc
+    ) cfgfunbody Set.empty
+
+
 let size_binop b e1 e2 =
   1 + e1 + e2
 
@@ -49,3 +72,22 @@ let rec size_instr (i: cfg_node) : int =
 
 let size_fun f =
   Hashtbl.fold (fun k v acc -> acc + size_instr v) f 0
+
+let fixpoint
+    (transfer: (int, cfg_node) Hashtbl.t -> (int, 'a) Hashtbl.t -> int -> 'a)
+    (init: (int, cfg_node) Hashtbl.t -> int -> cfg_node -> 'a)
+    (cfg: (int, cfg_node) Hashtbl.t) :
+  (int, 'a) Hashtbl.t =
+  let res = Hashtbl.map (fun k v -> init cfg k v) cfg in
+  let iter res =
+    Hashtbl.fold (fun n oldstate changed ->
+        let newstate = transfer cfg res n in
+        Hashtbl.replace res n newstate;
+        changed || not (Set.equal newstate oldstate)
+      ) res false in
+  let rec fix () =
+    if iter res
+    then fix ()
+    else () in
+  fix ();
+  res

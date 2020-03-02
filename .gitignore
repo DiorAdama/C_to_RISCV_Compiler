@@ -3,6 +3,7 @@ tests/**/*.cfg
 tests/**/*.cfg0
 tests/**/*.cfg1
 tests/**/*.cfg2
+tests/**/*.cfg3
 tests/**/*.e.dump
 tests/**/*.e.html
 tests/**/*.exe

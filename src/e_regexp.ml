@@ -108,7 +108,11 @@ let list_regexp =
     (Cat (char_regexp '\'',
           Cat (char_range (List.filter (fun c -> c <> '\'' && c <> '\\') alphabet),
                char_regexp '\'')),
-     fun s -> Some (SYM_CHARACTER (String.get s 1)));
+     fun s ->
+       match String.get s 1 with
+       | a -> Some (SYM_CHARACTER a)
+       | exception Invalid_argument _ -> Some (SYM_CHARACTER '\x00')
+    );
     (Cat (char_regexp '\'', Cat (char_regexp '\\',
           Cat (char_range (char_list_of_string "\\tn0"),
                char_regexp '\''))),
@@ -118,6 +122,7 @@ let list_regexp =
          | 't' -> Some (SYM_CHARACTER '\t')
          | '0' -> Some (SYM_CHARACTER '\x00')
          | _ -> None
+         | exception _ -> Some (SYM_CHARACTER '\x00')
     );
     (Cat (char_regexp '"',
           Cat (Star (

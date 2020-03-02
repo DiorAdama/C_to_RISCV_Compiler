@@ -9,7 +9,7 @@ main.native:
 			-t grammar.html
 	./configure
 	make -C src
-	cp src/main.native main.native
+	ln -sf src/main.native main.native
 
 
 clean:

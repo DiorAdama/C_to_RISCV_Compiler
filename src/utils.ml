@@ -276,4 +276,13 @@ let string_of_int_list l =
 let string_of_int_set s =
   string_of_int_list (Set.to_list s)
 
+let string_of_string_set v =
+  String.concat ", " (Set.to_list v)
 
+let string_of_int_int_set v =
+  String.concat ", " (List.map (fun (x,y) -> Printf.sprintf "(%d,%d)" x y) (Set.to_list v))
+
+let string_of_int_option v =
+  match v with
+  | None -> "undef"
+  | Some x -> string_of_int x

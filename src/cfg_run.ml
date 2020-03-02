@@ -7,7 +7,8 @@ open Cfg
 open Utils
 open Builtins
 
-let rec eval_cfgexpr st : expr -> int res = function
+let rec eval_cfgexpr st (e: expr) : int res =
+  match e with
   | Ebinop(b, e1, e2) ->
     eval_cfgexpr st e1 >>= fun v1 ->
     eval_cfgexpr st e2 >>= fun v2 ->

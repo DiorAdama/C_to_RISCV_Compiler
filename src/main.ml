@@ -36,6 +36,8 @@ open Report
 open Options
 open Lexer_generator
 
+open Cfg_loops
+
 let tokenize file =
   Lexer_generator.tokenize_file file >>= fun tokens ->
   OK (List.map (fun tok -> (tok, None)) tokens)
@@ -49,6 +51,7 @@ let speclist =
     ("-e-run", Arg.Set e_run, "Run Elang program.");
     ("-cfg-dump", Arg.String (fun s -> cfg_dump := Some s), "Output CFG file.");
     ("-cfg-run", Arg.Set cfg_run, "Run CFG program.");
+    ("-cfg-run-after-loop", Arg.Set cfg_run_after_loop, "Run CFG program after loop optimization.");
     ("-cfg-run-after-cp", Arg.Set cfg_run_after_cp, "Run CFG program after constant propagation.");
     ("-cfg-run-after-dae", Arg.Set cfg_run_after_dae, "Run CFG program after dead assign elimination.");
     ("-cfg-run-after-ne", Arg.Set cfg_run_after_ne, "Run CFG program after nop elimination.");
@@ -67,6 +70,7 @@ let speclist =
     ("-all-run", Arg.Unit (fun () ->
          e_run := true;
          cfg_run := true;
+         cfg_run_after_loop := true;
          cfg_run_after_cp := true;
          cfg_run_after_dae := true;
          cfg_run_after_ne := true;
@@ -289,26 +293,36 @@ let _ =
             run "Elang" !e_run eval_eprog ep;
 
             cfg_prog_of_eprog ep >>! fun cfg ->
+            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG";
+
             dump !cfg_dump dump_cfg_prog cfg (call_dot "cfg" "CFG");
             run "CFG" !cfg_run eval_cfgprog cfg;
 
-            let cfg = constant_propagation cfg in
-            record_compile_result "ConstProp";
+            let cfg = optimize_loop_cfg cfg in
+            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG loops";
             dump (!cfg_dump >*> fun s -> s ^ "0") dump_cfg_prog cfg
+              (call_dot "cfg-after-loop" "CFG after loop optim");
+            run "CFG after loop optim" !cfg_run_after_loop eval_cfgprog cfg;
+
+
+            let cfg = constant_propagation cfg in
+            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "Constprop";
+            dump (!cfg_dump >*> fun s -> s ^ "1") dump_cfg_prog cfg
               (call_dot "cfg-after-cstprop" "CFG after Constant Propagation");
             run "CFG after constant_propagation" !cfg_run_after_cp eval_cfgprog cfg;
 
             let cfg = dead_assign_elimination cfg in
-            record_compile_result "DeadAssign";
-            dump (!cfg_dump >*> fun s -> s ^ "1") dump_cfg_prog cfg
+            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "DeadAssign";
+            dump (!cfg_dump >*> fun s -> s ^ "2") dump_cfg_prog cfg
               (call_dot "cfg-after-dae" "CFG after DAE");
             run "CFG after dead_assign_elimination" !cfg_run_after_dae eval_cfgprog cfg;
 
             let cfg = nop_elimination cfg in
-            record_compile_result "NopElim";
-            dump (!cfg_dump >*> fun s -> s ^ "2") dump_cfg_prog cfg
+            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "NopElim";
+            dump (!cfg_dump >*> fun s -> s ^ "3") dump_cfg_prog cfg
               (call_dot "cfg-after-nop" "CFG after NOP elim");
             run "CFG after nop_elimination" !cfg_run_after_ne eval_cfgprog cfg;
+
 
             let rtl = rtl_of_cfg cfg in
             dump !rtl_dump dump_rtl_prog rtl

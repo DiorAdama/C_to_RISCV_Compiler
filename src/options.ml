@@ -7,6 +7,7 @@ let e_dump : string option ref = ref None
 let e_run = ref false
 let cfg_dump : string option ref = ref None
 let cfg_run = ref false
+let cfg_run_after_loop = ref false
 let cfg_run_after_cp = ref false
 let cfg_run_after_dae = ref false
 let cfg_run_after_ne = ref false
