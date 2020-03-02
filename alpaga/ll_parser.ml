@@ -72,7 +72,8 @@ let follow_nt (toks,nts,rules) (n: string) : bool =
                               then follow (fst x)
                               else Set.empty) (first_prod (toks,nts,rules) (snd x))) l in
   let l = List.fold_left Set.union Set.empty l in
-  Hashtbl.add followt n l; old <> l
+  Hashtbl.add followt n l;
+  not (Set.equal old l)
 
 let follow_all_nt (toks,nts,rules) () = apply_on_all (follow_nt (toks,nts,rules)) nts
 
