@@ -85,7 +85,7 @@ let speclist =
     ("-m32", Arg.Unit (fun _ -> Archi.archi := A32), "32bit mode");
     ("-f", Arg.String (fun s -> input_file := Some s), "file to compile");
     ("-alloc-order-ts", Arg.Unit (fun _ -> Options.alloc_order_st := false), "Allocate t regs before s regs");
-    ("-json", Arg.Set output_json, "Output JSON summary");
+    ("-json", Arg.String (fun s -> output_json := s), "Output JSON summary");
     ("-nostart", Arg.Set nostart, "Don't output _start code.");
     ("-nostats", Arg.Set nostats, "Don't output stats.");
     ("-nomul", Arg.Unit (fun _ -> has_mul := false), "Target architecture without mul instruction.");
@@ -358,9 +358,7 @@ let _ =
 
       end;
 
-
-      if !output_json
-      then begin
+      let json_output_string = 
         let open Yojson in
         let jstring_of_ostring o =
           match o with
@@ -380,6 +378,10 @@ let _ =
                       ("data", data)
                      ]
           ) !results) in
-        Format.printf "%s\n" (Yojson.pretty_to_string j);
-      end;
+        (Yojson.pretty_to_string j) in
+
+
+      dump (Some !output_json) (fun oc p ->
+          Format.fprintf oc "%s\n" p
+        ) json_output_string (fun _ () -> ());
       make_report input report ()

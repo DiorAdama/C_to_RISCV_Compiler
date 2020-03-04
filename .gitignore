@@ -7,6 +7,7 @@ tests/**/*.cfg3
 tests/**/*.e.dump
 tests/**/*.e.html
 tests/**/*.exe
+tests/**/*.json
 tests/**/*.lex
 tests/**/*.linear
 tests/**/*.linear1

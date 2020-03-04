@@ -24,36 +24,35 @@ let eval_unop (u: unop) : int -> int =
 let rec eval_eexpr st (e : expr) : int res =
    Error "eval_eexpr not implemented yet."
 
-(* [eval_einstr oc st ins] evaluates the instruction [ins] in starting state
-   [st].
+(* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].
 
-   The parameter [oc], unused for now, is an output channel in which functions
-   like "print" will write their output, when we add them.
+   Le paramètre [oc] est un "output channel", dans lequel la fonction "print"
+   écrit sa sortie, au moyen de l'instruction [Format.fprintf].
 
-   This function returns [(ret, st')] :
+   Cette fonction renvoie [(ret, st')] :
 
-   - [ret] is an [int option]. [Some v] should be returned when a return
-   instruction is met. [None] means that execution should continue.
+   - [ret] est de type [int option]. [Some v] doit être renvoyé lorsqu'une
+   instruction [return] est évaluée. [None] signifie qu'aucun [return] n'a eu
+   lieu et que l'exécution doit continuer.
 
-   - [st'] is the updated state.
-*)
+   - [st'] est l'état mis à jour. *)
 let rec eval_einstr oc (st: int state) (ins: instr) :
   (int option * int state) res =
    Error "eval_einstr not implemented yet."
 
-(* [eval_efun oc st f fname vargs] evaluates function [f] (whose name is
-   [fname]) starting in state [st], with arguments given in [vargs].
+(* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
+   [fname]) en partant de l'état [st], avec les arguments [vargs].
 
-   This returns a pair (ret, st') with the same meaning as for [eval_einstr].
-*)
+   Cette fonction renvoie un couple (ret, st') avec la même signification que
+   pour [eval_einstr]. *)
 let eval_efun oc (st: int state) ({ funargs; funbody}: efun)
     (fname: string) (vargs: int list)
   : (int option * int state) res =
-  (* A function's environment (mapping from local variables to values) is local
-     and a function call should not modify the caller's variables. Hence, we
-     save the caller's environment in [env_save], call the function in a clean
-     environment with only its arguments set, and restore the caller's
-     environment. *)
+  (* L'environnement d'une fonction (mapping des variables locales vers leurs
+     valeurs) est local et un appel de fonction ne devrait pas modifier les
+     variables de l'appelant. Donc, on sauvegarde l'environnement de l'appelant
+     dans [env_save], on appelle la fonction dans un environnement propre (Avec
+     seulement ses arguments), puis on restore l'environnement de l'appelant. *)
   let env_save = Hashtbl.copy st.env in
   let env = Hashtbl.create 17 in
   match List.iter2 (fun a v -> Hashtbl.replace env a v) funargs vargs with
@@ -66,19 +65,22 @@ let eval_efun oc (st: int state) ({ funargs; funbody}: efun)
              fname (List.length vargs) (List.length funargs)
           )
 
-(* [eval_eprog oc ep memsize params] evaluates a complete program [ep], with
+(* [eval_eprog oc ep memsize params] évalue un programme complet [ep], avec les
    arguments [params].
 
-   The [memsize] parameter gives the size of the memory this program will be run
-   with. This is not useful for now (our programs do not use memory), but it
-   will when we add memory allocation to our programs.
+   Le paramètre [memsize] donne la taille de la mémoire dont ce programme va
+   disposer. Ce n'est pas utile tout de suite (nos programmes n'utilisent pas de
+   mémoire), mais ça le sera lorsqu'on ajoutera de l'allocation dynamique dans
+   nos programmes.
 
-   Returns:
-   - [OK (Some v)] when the function evaluation went without problems and
-   resulted in integer value [v].
-   - [OK None] when the function evaluation finished without returning a value.
-   - [Error msg] when an error has occured.
-*)
+   Renvoie:
+
+   - [OK (Some v)] lorsque l'évaluation de la fonction a lieu sans problèmes et renvoie une valeur [v].
+
+   - [OK None] lorsque l'évaluation de la fonction termine sans renvoyer de valeur.
+
+   - [Error msg] lorsqu'une erreur survient.
+   *)
 let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   : int option res =
   let st = init_state memsize in

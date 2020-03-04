@@ -56,7 +56,7 @@ if(args.verbose >= 1):
 # construct the set of commands to be launched, one per file
 cmds = []
 for f in args.file:
-    cmd = "../main.native -json -f {} {} {} -- {}".format(f,
+    cmd = "../main.native -json {}.json -f {} {} {} -- {}".format(f, f,
                                                  " ".join(map(lambda s : "-"+s, args.passes)),
                                                        " ".join(unknown_args),
                                                  " ".join(args.args)
@@ -142,13 +142,15 @@ class CommandExecutor(Thread):
         process = self.run_capture_output_interruptible(c)
         self.stdout = process['stdout'].decode('utf8')
         self.stderr = process['stderr'].decode('utf8')
+        json_file_name = self.f + ".json"
         j = []
-        try:
-            j = json.loads(self.stdout)
-        except:
-            j.append({'retval':-1,
-                      'output': display_verbatim(self.stdout),
-                      'error': display_verbatim(self.stderr)})
+        with open(json_file_name, 'r') as jsonfile:
+            try:
+                j = json.load(jsonfile)
+            except:
+                j.append({'retval':-1,
+                          'output': display_verbatim(self.stdout),
+                          'error': display_verbatim(self.stderr)})
         old_ret = None
         old_out = None
         old_err = None
