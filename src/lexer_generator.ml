@@ -338,7 +338,7 @@ let char_list_to_char_ranges s =
     match cl with
     | [] -> (match opt_c with
           None -> l
-        | Some c -> l @ [(c,n)]
+        | Some c -> (c,n)::l
       )
     | c::r -> (match opt_c with
         | None -> recognize_range r l (Some c) 0
@@ -350,12 +350,17 @@ let char_list_to_char_ranges s =
   in
   let l = recognize_range (List.sort Stdlib.compare (List.map Char.code s)) [] None 0 in
   let escape_char c =
-    if c = '"'
-    then "\\\"" else Printf.sprintf "%c" c in
+    if c = '"' then "\\\""
+    else if c = '\\' then "\\\\"
+    else if c = '\x00' then "\\\\0"
+    else if c = '\t' then "\\\\t"
+    else if c = '\n' then "\\\\n"
+    else Printf.sprintf "%c" c in
   List.fold_left (fun acc (c,n) ->
-      if n = 0
-      then Printf.sprintf "%s%s" (escape_char (Char.chr c)) acc
-      else Printf.sprintf "%s-%s%s" (escape_char (Char.chr c))
+      match n with
+      | 0 -> Printf.sprintf "%s%s" (escape_char (Char.chr c)) acc
+      | 1 -> Printf.sprintf "%s%s%s" (escape_char (Char.chr c)) (c + 1 |> Char.chr |> escape_char) acc
+      | _ -> Printf.sprintf "%s-%s%s" (escape_char (Char.chr c))
           (escape_char (Char.chr (c + n))) acc
     ) "" l
 

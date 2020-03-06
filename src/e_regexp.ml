@@ -50,15 +50,18 @@ let rec string_of_regexp r =
                      (string_of_regexp r1) (string_of_regexp r2)
   | Star r -> Printf.sprintf "(%s)*" (string_of_regexp r)
 
+
+let lowercase_letters = "abcdefghijklmnopqrstuvwxyz"
+let uppercase_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+let digits = "0123456789"
+let other_characters = "?!=<>_ :;,{}()[]^`-+*/%@\n\t\x00.\"\'\\|~#$&"
+let alphabet = char_list_of_string (lowercase_letters ^ uppercase_letters ^ digits ^ other_characters)
+let letter_regexp = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters))
+let digit_regexp = char_range (char_list_of_string digits)
+let identifier_material = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters ^ digits ^ "_"))
+
 (* La liste des expressions régulières permettant d'identifier les tokens du langage E *)
 let list_regexp =
-  let lowercase_letters = "abcdefghijklmnopqrstuvwxyz" in
-  let uppercase_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" in
-  let digits = "0123456789" in
-  let other_characters = "?!=<>_ ;,{}()[]-+*/%\n\t" in
-  let alphabet = char_list_of_string (lowercase_letters ^ uppercase_letters ^ digits ^ other_characters) in
-  let letter_regexp = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters)) in
-  let digit_regexp = char_range (char_list_of_string digits) in
   let keyword_regexp s = str_regexp (char_list_of_string s) in
   [
     (keyword_regexp "while",    fun s -> Some (SYM_WHILE));
@@ -114,12 +117,13 @@ let list_regexp =
        | exception Invalid_argument _ -> Some (SYM_CHARACTER 'a')
     );
     (Cat (char_regexp '\'', Cat (char_regexp '\\',
-          Cat (char_range (char_list_of_string "\\tn0"),
+          Cat (char_range (char_list_of_string "\\tn0'"),
                char_regexp '\''))),
      fun s -> match String.get s 2 with
          | '\\' -> Some (SYM_CHARACTER '\\')
          | 'n' -> Some (SYM_CHARACTER '\n')
          | 't' -> Some (SYM_CHARACTER '\t')
+         | '\'' -> Some (SYM_CHARACTER '\'')
          | '0' -> Some (SYM_CHARACTER 'a')
          | _ -> None
          | exception _ -> Some (SYM_CHARACTER 'a')
@@ -133,9 +137,7 @@ let list_regexp =
             ),
                char_regexp '"')),
      fun s -> Some (SYM_STRING (Stdlib.Scanf.unescaped (String.slice ~first:1 ~last:(-1) s))));
-    (char_regexp ' ', fun s -> None);
-    (char_regexp '\n', fun s -> None);
-    (char_regexp '\t', fun s -> None);
+    (char_range (char_list_of_string " \t\n"), fun s -> None);
     (plus digit_regexp, fun s -> Some (SYM_INTEGER (int_of_string s)));
     (Eps, fun s -> Some (SYM_EOF))
   ]

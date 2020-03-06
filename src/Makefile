@@ -17,6 +17,8 @@ $(TG): $(SRC)
 test_lexer: $(SRC)
 	ocamlbuild -use-ocamlfind test_lexer.native
 	./test_lexer.native
+	dot -Tsvg /tmp/dfa.dot -o /tmp/dfa.svg
+	dot -Tsvg /tmp/nfa.dot -o /tmp/nfa.svg
 
 clean:
 	rm -rf _build
