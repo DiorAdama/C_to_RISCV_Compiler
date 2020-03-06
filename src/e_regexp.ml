@@ -103,9 +103,11 @@ let list_regexp =
      fun s -> None);
     (Cat(keyword_regexp "/*",
          Cat(
-           Star (Alt (char_range (List.filter (fun c -> c <> '*') alphabet),
-                      Cat (char_regexp '*',
-                           char_range (List.filter (fun c -> c <> '/') alphabet)))),
+           Star (Alt (
+               char_range (List.filter (fun c -> c <> '*') alphabet),
+               Cat (Star(char_regexp '*'),
+                    plus(char_range (List.filter (fun c -> c <> '/' && c <> '*') alphabet)))
+             )),
            keyword_regexp "*/")),
      fun s -> None);
     (Cat (char_regexp '\'',
