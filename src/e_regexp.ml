@@ -111,7 +111,7 @@ let list_regexp =
      fun s ->
        match String.get s 1 with
        | a -> Some (SYM_CHARACTER a)
-       | exception Invalid_argument _ -> Some (SYM_CHARACTER '\x00')
+       | exception Invalid_argument _ -> Some (SYM_CHARACTER 'a')
     );
     (Cat (char_regexp '\'', Cat (char_regexp '\\',
           Cat (char_range (char_list_of_string "\\tn0"),
@@ -120,9 +120,9 @@ let list_regexp =
          | '\\' -> Some (SYM_CHARACTER '\\')
          | 'n' -> Some (SYM_CHARACTER '\n')
          | 't' -> Some (SYM_CHARACTER '\t')
-         | '0' -> Some (SYM_CHARACTER '\x00')
+         | '0' -> Some (SYM_CHARACTER 'a')
          | _ -> None
-         | exception _ -> Some (SYM_CHARACTER '\x00')
+         | exception _ -> Some (SYM_CHARACTER 'a')
     );
     (Cat (char_regexp '"',
           Cat (Star (

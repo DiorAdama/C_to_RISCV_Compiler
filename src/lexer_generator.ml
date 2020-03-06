@@ -349,10 +349,14 @@ let char_list_to_char_ranges s =
       )
   in
   let l = recognize_range (List.sort Stdlib.compare (List.map Char.code s)) [] None 0 in
+  let escape_char c =
+    if c = '"'
+    then "\\\"" else Printf.sprintf "%c" c in
   List.fold_left (fun acc (c,n) ->
       if n = 0
-      then Printf.sprintf "%c%s" (Char.chr c) acc
-      else Printf.sprintf "%c-%c%s" (Char.chr c) (Char.chr (c + n)) acc
+      then Printf.sprintf "%s%s" (escape_char (Char.chr c)) acc
+      else Printf.sprintf "%s-%s%s" (escape_char (Char.chr c))
+          (escape_char (Char.chr (c + n))) acc
     ) "" l
 
 
