@@ -59,10 +59,10 @@ let alphabet = char_list_of_string (lowercase_letters ^ uppercase_letters ^ digi
 let letter_regexp = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters))
 let digit_regexp = char_range (char_list_of_string digits)
 let identifier_material = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters ^ digits ^ "_"))
+let keyword_regexp s = str_regexp (char_list_of_string s)
 
 (* La liste des expressions régulières permettant d'identifier les tokens du langage E *)
 let list_regexp =
-  let keyword_regexp s = str_regexp (char_list_of_string s) in
   [
     (keyword_regexp "while",    fun s -> Some (SYM_WHILE));
     (keyword_regexp "int", fun s -> Some (SYM_INT));

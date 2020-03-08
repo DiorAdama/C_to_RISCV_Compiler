@@ -5,19 +5,13 @@ open Utils
 open Symbols
 
 let () =
-  let lowercase_letters = "abcdefghijklmnopqrstuvwxyz" in
-  let uppercase_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" in
-  let digits = "0123456789" in
-  let other_characters = "?!=<>_ ;,{}()[]-+*/%\n\t" in
-  let alphabet = char_list_of_string (lowercase_letters ^ uppercase_letters ^ digits ^ other_characters) in
-  let letter_regexp = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters)) in
-  let digit_regexp = char_range (char_list_of_string digits) in
-  let keyword_regexp s = str_regexp (char_list_of_string s) in
   let regexp_list = [
     (keyword_regexp "while",    fun s -> Some (SYM_WHILE));
     (keyword_regexp "if",    fun s -> Some (SYM_IF));
   ] in
-
+  (* Décommentez la ligne suivante pour tester sur la vraie liste d'expressions
+     régulières. *)
+  (* let regexp_list = list_regexp in *)
   List.iteri
     (fun i (rg, _) -> Printf.printf "%d: %s\n" i (string_of_regexp rg))
     regexp_list;

@@ -3,48 +3,42 @@ open Cfg
 open Prog
 open Utils
 
-(* Liveness analysis *)
+(* Analyse de vivacité *)
 
-(* [vars_in_expr e] returns the set of variables appearing in [e]. *)
+(* [vars_in_expr e] renvoie l'ensemble des variables qui apparaissent dans [e]. *)
 let rec vars_in_expr (e: expr) =
+   (* TODO *)
    Set.empty
 
-(* [live_cfg_node node live_after] gives the set of variables live before the
-   node [node], given the set [live_after] of variables live after this node. *)
+(* [live_cfg_node node live_after] renvoie l'ensemble des variables vivantes
+   avant un nœud [node], étant donné l'ensemble [live_after] des variables
+   vivantes après ce nœud. *)
 let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
+   (* TODO *)
    live_after
 
-(* Computes the set of live variables after a node [n] in a CFG [cfg].
-   [lives] is a mapping from CFG node identifier to the set of variables that
-   are live before this node.
-*)
+(* [live_after_node cfg n] renvoie l'ensemble des variables vivantes après le
+   nœud [n] dans un CFG [cfg]. [lives] est l'état courant de l'analyse,
+   c'est-à-dire une table dont les clés sont des identifiants de nœuds du CFG et
+   les valeurs sont les ensembles de variables vivantes avant chaque nœud. *)
 let live_after_node cfg n (lives: (int, string Set.t) Hashtbl.t) : string Set.t =
+   (* TODO *)
    Set.empty
 
-(* [live_cfg_nodes cfg lives] makes one iteration of the fixpoint computation.
+(* [live_cfg_nodes cfg lives] effectue une itération du calcul de point fixe.
 
-   This returns a boolean that is true if some progress has been made in this
-   iteration (the set of variables live at at least one node has changed), false
-   otherwise. *)
+   Cette fonction met à jour l'état de l'analyse [lives] et renvoie un booléen
+   qui indique si le calcul a progressé durant cette itération (i.e. s'il existe
+   au moins un nœud n pour lequel l'ensemble des variables vivantes avant ce
+   nœud a changé). *)
 let live_cfg_nodes cfg (lives : (int, string Set.t) Hashtbl.t) =
+   (* TODO *)
    false
 
-(* [live_cfg_fun f] computes the set of live variables at each point by
-   iterating [live_cfg_nodes] as long as progress is made. *)
-let live_cfg_fun ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =
-  let lives : (int, string Set.t) Hashtbl.t = Hashtbl.create 17 in
-  let rec aux () =
-    if live_cfg_nodes cfgfunbody lives
-    then aux ()
-    else () in
-  aux ();
-  lives
-
-let live_cfg_fun ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =
-  fixpoint (fun cfg lives n ->
-      match Hashtbl.find_option cfg n with
-      | Some cn -> live_cfg_node cn (live_after_node cfg n lives)
-      | None -> failwith "Unknown node"
-    )
-    (fun cfg n cn -> Set.empty)
-    cfgfunbody
+(* [live_cfg_fun f] calcule l'ensemble des variables vivantes avant chaque nœud
+   du CFG en itérant [live_cfg_nodes] jusqu'à ce qu'un point fixe soit atteint.
+   *)
+let live_cfg_fun (f: cfg_fun) : (int, string Set.t) Hashtbl.t =
+  let lives = Hashtbl.create 17 in
+     (* TODO *)
+ lives
