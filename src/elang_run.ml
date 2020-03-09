@@ -85,8 +85,7 @@ let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   : int option res =
   let st = init_state memsize in
   find_function ep "main" >>= fun f ->
-  (* trim the parameter list to only take as many as required by the function.
-     *)
+  (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
   let n = List.length f.funargs in
   let params = take n params in
   eval_efun oc st f "main" params >>= fun (v, st) ->

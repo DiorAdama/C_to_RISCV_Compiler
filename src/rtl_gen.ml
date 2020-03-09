@@ -25,10 +25,9 @@ open Utils
 
 *)
 let find_var (next_reg, var2reg) v =
-  begin match List.assoc_opt v var2reg with
+  match List.assoc_opt v var2reg with
     | Some r -> (r, next_reg, var2reg)
     | None -> (next_reg, next_reg + 1, assoc_set var2reg v next_reg)
-  end
 
 (* [rtl_instrs_of_cfg_expr (next_reg, var2reg) e] construit une liste
    d'instructions RTL correspondant à l'évaluation d'une expression E.
@@ -52,9 +51,12 @@ let is_cmp_op =
          | Ecne -> Some Rcne
          | _ -> None
 
-let is_cmp (e: expr) =
+let rtl_cmp_of_cfg_expr (e: expr) =
   match e with
-  | Ebinop (b, e1, e2) -> (match is_cmp_op b with | None -> (Rcne, e, Eint 0) | Some rop -> (rop, e1, e2))
+  | Ebinop (b, e1, e2) ->
+    (match is_cmp_op b with
+     | None -> (Rcne, e, Eint 0)
+     | Some rop -> (rop, e1, e2))
   | _ -> (Rcne, e, Eint 0)
 
 

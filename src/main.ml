@@ -161,7 +161,7 @@ let dump file dumpf p additional_command =
           (Format.formatter_of_out_channel oc, fun () -> close_out oc)
       in
       dumpf oc p; close ();
-      additional_command file ()
+      if file <> "-" then additional_command file ()
   end
 
 
