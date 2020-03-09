@@ -292,7 +292,10 @@ let _ =
                 add_to_report "e" "E" (Code (file_contents file)));
             run "Elang" !e_run eval_eprog ep;
 
-            cfg_prog_of_eprog ep >>! fun cfg ->
+            match cfg_prog_of_eprog ep with
+            | Error msg ->
+              record_compile_result ~error:(Some msg) "CFG";
+            | OK cfg ->
             record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG";
 
             dump !cfg_dump dump_cfg_prog cfg (call_dot "cfg" "CFG");
