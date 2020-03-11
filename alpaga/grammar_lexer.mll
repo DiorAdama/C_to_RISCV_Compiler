@@ -21,7 +21,10 @@ rule token = parse
   | "rules" { RULES }
   | id as s { IDENTIFIER s }
   | eof { EOF }
-  | _ as x { failwith (Printf.sprintf "unexpected char '%c'\n" x)}
+  | _ as x { let open Lexing in
+             failwith (Printf.sprintf "unexpected char '%c' at line %d col %d\n" x
+                         (lexbuf.lex_curr_p.pos_lnum)
+                         (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol))}
 and action level s = parse
   | '}' { if level = 0 then CODE s else action (level-1) (s ^ "}") lexbuf }
   | '{' { action (level + 1) (s ^ "{") lexbuf }
