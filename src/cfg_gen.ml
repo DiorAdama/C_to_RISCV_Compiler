@@ -11,7 +11,17 @@ open Prog
    but not to [Cfg.expr], hence the distinction.
 *)
 let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
-   Error "cfg_expr_of_eexpr not implemented yet."
+  match e with
+  | Elang.Ebinop (b, e1, e2) ->
+    cfg_expr_of_eexpr e1 >>= fun ee1 ->
+    cfg_expr_of_eexpr e2 >>= fun ee2 ->
+    OK (Ebinop (b, ee1, ee2))
+  | Elang.Eunop (u, e) ->
+    cfg_expr_of_eexpr e >>= fun ee ->
+    OK (Eunop (u, ee))
+  | Elang.Eint i -> OK (Eint i)
+  | Elang.Evar v ->
+    OK (Evar v)
 
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
    to the E instruction [i].
@@ -35,7 +45,28 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Cassign(v,e,succ));
     OK (next, next + 1)
-   | _ -> Error "cfg_node_of_einstr not implemented yet."
+  | Elang.Iif (c, ithen, ielse) ->
+    cfg_expr_of_eexpr c >>= fun c ->
+    cfg_node_of_einstr next cfg succ ithen >>= fun (nthen, next) ->
+    cfg_node_of_einstr next cfg succ ielse  >>= fun (nelse, next) ->
+    Hashtbl.replace cfg next (Ccmp(c, nthen, nelse)); OK (next, next + 1)
+  | Elang.Iwhile (c, i) ->
+    cfg_expr_of_eexpr c >>= fun c ->
+    let (cmp, next) = (next, next+1) in
+    cfg_node_of_einstr next cfg cmp i >>= fun (nthen, next) ->
+    Hashtbl.replace cfg cmp (Ccmp(c, nthen, succ)); OK (cmp, next + 1)
+  | Elang.Iblock il ->
+    List.fold_right (fun i acc ->
+        acc >>= fun (succ, next) ->
+        cfg_node_of_einstr next cfg succ i
+      ) il (OK (succ, next))
+  | Elang.Ireturn e ->
+    cfg_expr_of_eexpr e >>= fun e ->
+    Hashtbl.replace cfg next (Creturn e); OK (next, next + 1)
+  | Elang.Iprint e ->
+    cfg_expr_of_eexpr e >>= fun e ->
+    Hashtbl.replace cfg next (Cprint (e,succ));
+    OK (next, next + 1)
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The
    [reachable_nodes n cfg] constructs the set of node identifiers that are
