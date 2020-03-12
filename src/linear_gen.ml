@@ -38,6 +38,7 @@ let linear_of_rtl_fun
     ({ rtlfunargs; rtlfunbody; rtlfunentry; rtlfuninfo }: rtl_fun) =
   let block_order = sort_blocks rtlfunbody rtlfunentry in
   let linearinstrs =
+    Rjmp rtlfunentry ::
     List.fold_left (fun l n ->
         match Hashtbl.find_option rtlfunbody n with
         | None -> l
