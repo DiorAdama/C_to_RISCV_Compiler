@@ -37,3 +37,11 @@ let make_report filename report () =
     !report;
   close_out html;
   ()
+
+let call_dot report_sectid report_secttitle file () : unit =
+  if not !Options.no_dot
+  then begin
+    let r = Sys.command (Format.sprintf "dot -Tsvg %s -o %s.svg" file file) in
+    add_to_report report_sectid report_secttitle (Img (Filename.basename file^".svg"));
+    ignore r
+  end

@@ -19,6 +19,13 @@ let print_cmpop (r: rtl_cmp) =
 
 let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
   let print_node s = Format.sprintf "%s_%d" name s in
+
+  let dump_liveness live where =
+    match live with
+      Some live -> Format.fprintf oc "// Live %s : { %s }\n" where (String.concat ", " (Set.to_list (Set.map string_of_int live)))
+    | None -> ()
+  in
+  dump_liveness live_in "before";
   begin match i with
   | Rbinop (b, rd, rs1, rs2) ->
     Format.fprintf oc "%s <- %s(%s, %s)" (print_reg rd) (dump_binop b) (print_reg rs1) (print_reg rs2)
@@ -35,7 +42,8 @@ let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
   | Rprint r -> Format.fprintf oc "print %s" (print_reg r)
   | Rlabel n -> Format.fprintf oc "%s_%d:" name n
   end;
-  Format.fprintf oc "\n"
+  Format.fprintf oc "\n";
+  dump_liveness live_out "after"
 
 let dump_rtl_node name lives =
   print_listi (fun i ->

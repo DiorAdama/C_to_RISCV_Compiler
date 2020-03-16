@@ -107,15 +107,16 @@ let dump_ltl_instr_list fname oc l =
       dump_ltl_instr oc ins;
       Format.fprintf oc "\n") l
 
+let dump_allocation oc fname alloc =
+  Format.fprintf oc "// In function %s\n" fname;
+  List.iter (fun (linr,ltlloc) ->
+      Format.fprintf oc "// LinReg %d allocated to %s\n" linr (print_loc ltlloc)
+    ) alloc
+
 let dump_ltl_fun oc fname lf =
+  dump_allocation oc fname lf.ltlregalloc;
   Format.fprintf oc "%s:\n" fname;
   dump_ltl_instr_list fname oc lf.ltlfunbody
 
 let dump_ltl_prog oc lp =
   dump_prog dump_ltl_fun oc lp
-
-let dump_allocation fname alloc =
-  Format.printf "In function %s\n" fname;
-  Hashtbl.iter (fun linr ltlloc ->
-      Format.printf "LinReg %d allocated to %s\n" linr (print_loc ltlloc)
-    ) alloc

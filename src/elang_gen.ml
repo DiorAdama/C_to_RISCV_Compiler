@@ -81,9 +81,8 @@ let make_fundef_of_ast (a: tree) : (string * efun) res =
 
 let make_eprog_of_ast (a: tree) : eprog res =
   match a with
-  | Node (Tlistglobdef, [a]) ->
-    make_fundef_of_ast a >>= fun (fname, efun) ->
-    OK [(fname, Gfun efun)]
+  | Node (Tlistglobdef, l) ->
+    list_map_res (fun a -> make_fundef_of_ast a >>= fun (fname, efun) -> OK (fname, Gfun efun)) l
   | _ ->
     Error (Printf.sprintf "make_fundef_of_ast: Expected a Tlistglobdef, got %s."
              (string_of_ast a))

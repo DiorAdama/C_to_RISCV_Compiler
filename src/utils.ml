@@ -246,6 +246,21 @@ let list_map_res f l =
       OK (acc@[e])
     ) (OK []) l
 
+
+let list_map_resi f l =
+  List.fold_lefti (fun acc i e ->
+      acc >>= fun acc ->
+      f i e >>= fun e ->
+      OK (acc@[e])
+    ) (OK []) l
+
+let rec list_iter_res f l =
+  match l with
+    [] -> OK ()
+  | a::r ->
+    f a >>= fun  _ ->
+    list_iter_res f r
+
 let assoc_err ?word:(word="item") k l =
   match List.assoc_opt k l with
   | Some v -> OK v
@@ -286,3 +301,19 @@ let string_of_int_option v =
   match v with
   | None -> "undef"
   | Some x -> string_of_int x
+
+
+let dump file (dumpf : _ -> 'a -> unit) (p: 'a) (additional_command: string -> unit -> unit) =
+  begin match file with
+    | None -> ()
+    | Some file ->
+      let oc, close = 
+        if file = "-"
+        then (Format.std_formatter, fun _ -> ())
+        else
+          let oc = open_out file in
+          (Format.formatter_of_out_channel oc, fun () -> close_out oc)
+      in
+      dumpf oc p; close ();
+      if file <> "-" then additional_command file ()
+  end

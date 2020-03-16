@@ -32,3 +32,5 @@ let no_dump = ref false
 let no_dot = ref false
 
 let alloc_order_st = ref true
+let naive_regalloc = ref true
+let rig_dump : string option ref = ref None

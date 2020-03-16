@@ -67,6 +67,11 @@ let speclist =
     ("-riscv-run", Arg.Set riscv_run, "Run RISC-V program.");
     ("-no-dump", Arg.Set no_dump, "Do not dump anything but the .s file");
     ("-no-dot", Arg.Set no_dot, "Do not call dot on CFG dumps (default false)");
+    ("-clever-regalloc", Arg.Unit (fun () -> naive_regalloc := false), "Use the graph coloring algorithm for register allocation.");
+    ("-naive-regalloc", Arg.Unit (fun () -> naive_regalloc := true),
+     "Use the naive algorithm for register allocation (all pseudo-registers go on the stack).");
+    ("-rig-dump", Arg.String (fun s -> rig_dump := Some s),
+    "Path to output the register interference graph");
     ("-all-run", Arg.Unit (fun () ->
          e_run := true;
          cfg_run := true;
@@ -115,7 +120,11 @@ let results = ref []
 
 let run step flag eval p =
   if flag then begin
-    begin match eval Format.str_formatter p !heapsize !params with
+    let res = match eval Format.str_formatter p !heapsize !params with
+      | exception e ->
+        Error (Printexc.to_string e)
+      | e -> e in
+    begin match res with
       | OK v ->
         let output = Format.flush_str_formatter () in
         results := !results @ [RunRes { step ; retval = v; output; error = None}];
@@ -148,21 +157,6 @@ let run step flag eval p =
 let record_compile_result ?error:(error=None) ?data:(data=[]) step =
   let data = if not !Options.nostats then `List data else `Null in
   results := !results @ [CompRes { step; error; data}]
-
-let dump file dumpf p additional_command =
-  begin match file with
-    | None -> ()
-    | Some file ->
-      let oc, close = 
-        if file = "-"
-        then (Format.std_formatter, fun _ -> ())
-        else
-          let oc = open_out file in
-          (Format.formatter_of_out_channel oc, fun () -> close_out oc)
-      in
-      dumpf oc p; close ();
-      if file <> "-" then additional_command file ()
-  end
 
 
 
@@ -224,7 +218,13 @@ let exec_rv_prog ltl basename oc rvp heapsize params =
       f
   in
   let error = ref None in
-  dump (Some rvp) dump_riscv_prog ltl (fun file () -> error := compile_rv basename file ());
+  dump (Some rvp) (fun oc p ->
+      match dump_riscv_prog oc p with
+      | OK _ -> ()
+      | Error msg -> error := Some msg
+    ) ltl (fun file () ->
+      if !error = None
+      then error := compile_rv basename file ());
   match !error with
   | Some e -> Error ("RiscV generation error:\n" ^e)
   | None ->
@@ -237,13 +237,6 @@ let exec_rv_prog ltl basename oc rvp heapsize params =
       OK (Some ret)
     with _ -> OK None
 
-let call_dot report_sectid report_secttitle file () : unit =
-  if not !Options.no_dot
-  then begin
-    let r = Sys.command (Format.sprintf "dot -Tsvg %s -o %s.svg" file file) in
-    add_to_report report_sectid report_secttitle (Img (Filename.basename file^".svg"));
-    ignore r
-  end
 
 let _ =
   Arg.parse speclist (fun s -> ()) "Usage";
@@ -267,6 +260,7 @@ let _ =
           set_default cfg_dump basename ".cfg";
           set_default rtl_dump basename ".rtl";
           set_default linear_dump basename ".linear";
+          set_default rig_dump basename ".rig";
           set_default ltl_dump basename ".ltl";
         end;
 
@@ -275,89 +269,95 @@ let _ =
           ) $ fun tokens ->
             record_compile_result "Lexing";
             dump !show_tokens (fun oc tokens ->
-            List.iter (fun (tok,_) ->
-                Format.fprintf oc "%s\n" (string_of_symbol tok)
+                List.iter (fun (tok,_) ->
+                    Format.fprintf oc "%s\n" (string_of_symbol tok)
                   ) tokens) tokens (fun f () -> add_to_report "lexer" "Lexer" (Code (file_contents f)));
-        parse tokens () >>* (fun msg ->
-            record_compile_result ~error:(Some msg) "Parsing";
-          ) $ fun (ast, tokens) ->
-            record_compile_result "Parsing";
-            dump !ast_tree draw_ast_tree ast (call_dot "ast" "AST");
-            if !ast_dump then Format.printf "%s\n" (string_of_ast ast) else ();
+            parse tokens () >>* (fun msg ->
+                record_compile_result ~error:(Some msg) "Parsing";
+              ) $ fun (ast, tokens) ->
+                record_compile_result "Parsing";
+                dump !ast_tree draw_ast_tree ast (call_dot "ast" "AST");
+                if !ast_dump then Format.printf "%s\n" (string_of_ast ast) else ();
 
-            match make_eprog_of_ast ast with
-            | Error msg -> record_compile_result ~error:(Some msg) "Elang"
-            | OK  ep ->
-            dump !e_dump dump_e ep (fun file () ->
-                add_to_report "e" "E" (Code (file_contents file)));
-            run "Elang" !e_run eval_eprog ep;
+                match make_eprog_of_ast ast with
+                | Error msg -> record_compile_result ~error:(Some msg) "Elang"
+                | OK  ep ->
+                  dump !e_dump dump_e ep (fun file () ->
+                      add_to_report "e" "E" (Code (file_contents file)));
+                  run "Elang" !e_run eval_eprog ep;
 
-            match cfg_prog_of_eprog ep with
-            | Error msg ->
-              record_compile_result ~error:(Some msg) "CFG";
-            | OK cfg ->
-            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG";
+                  match cfg_prog_of_eprog ep with
+                  | Error msg ->
+                    record_compile_result ~error:(Some msg) "CFG";
+                  | OK cfg ->
+                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG";
 
-            dump !cfg_dump dump_cfg_prog cfg (call_dot "cfg" "CFG");
-            run "CFG" !cfg_run eval_cfgprog cfg;
+                    dump !cfg_dump dump_cfg_prog cfg (call_dot "cfg" "CFG");
+                    run "CFG" !cfg_run eval_cfgprog cfg;
 
-            let cfg = optimize_loop_cfg cfg in
-            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG loops";
-            dump (!cfg_dump >*> fun s -> s ^ "0") dump_cfg_prog cfg
-              (call_dot "cfg-after-loop" "CFG after loop optim");
-            run "CFG after loop optim" !cfg_run_after_loop eval_cfgprog cfg;
-
-
-            let cfg = constant_propagation cfg in
-            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "Constprop";
-            dump (!cfg_dump >*> fun s -> s ^ "1") dump_cfg_prog cfg
-              (call_dot "cfg-after-cstprop" "CFG after Constant Propagation");
-            run "CFG after constant_propagation" !cfg_run_after_cp eval_cfgprog cfg;
-
-            let cfg = dead_assign_elimination cfg in
-            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "DeadAssign";
-            dump (!cfg_dump >*> fun s -> s ^ "2") dump_cfg_prog cfg
-              (call_dot "cfg-after-dae" "CFG after DAE");
-            run "CFG after dead_assign_elimination" !cfg_run_after_dae eval_cfgprog cfg;
-
-            let cfg = nop_elimination cfg in
-            record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "NopElim";
-            dump (!cfg_dump >*> fun s -> s ^ "3") dump_cfg_prog cfg
-              (call_dot "cfg-after-nop" "CFG after NOP elim");
-            run "CFG after nop_elimination" !cfg_run_after_ne eval_cfgprog cfg;
+                    let cfg = optimize_loop_cfg cfg in
+                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG loops";
+                    dump (!cfg_dump >*> fun s -> s ^ "0") dump_cfg_prog cfg
+                      (call_dot "cfg-after-loop" "CFG after loop optim");
+                    run "CFG after loop optim" !cfg_run_after_loop eval_cfgprog cfg;
 
 
-            let rtl = rtl_of_cfg cfg in
-            dump !rtl_dump dump_rtl_prog rtl
-              (fun file () -> add_to_report "rtl" "RTL" (Code (file_contents file)));
-            run "RTL" !rtl_run exec_rtl_prog rtl;
+                    let cfg = constant_propagation cfg in
+                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "Constprop";
+                    dump (!cfg_dump >*> fun s -> s ^ "1") dump_cfg_prog cfg
+                      (call_dot "cfg-after-cstprop" "CFG after Constant Propagation");
+                    run "CFG after constant_propagation" !cfg_run_after_cp eval_cfgprog cfg;
 
-            let linear = linear_of_rtl rtl in
-            let lives = liveness_linear_prog linear in
-            dump !linear_dump (fun oc -> dump_linear_prog oc (Some lives)) linear
-              (fun file () -> add_to_report "linear" "Linear" (Code (file_contents file)));
-            run "Linear" !linear_run exec_linear_prog linear;
+                    let cfg = dead_assign_elimination cfg in
+                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "DeadAssign";
+                    dump (!cfg_dump >*> fun s -> s ^ "2") dump_cfg_prog cfg
+                      (call_dot "cfg-after-dae" "CFG after DAE");
+                    run "CFG after dead_assign_elimination" !cfg_run_after_dae eval_cfgprog cfg;
 
-            let linear = dse_prog linear lives in
-            record_compile_result "DSE";
-            dump (!linear_dump >*> fun s -> s ^ "1")
-              (fun oc -> dump_linear_prog oc (Some lives)) linear
-              (fun file () -> add_to_report "linear-after-dse" "Linear after DSE"
-                  (Code (file_contents file)));
-            run "Linear after DSE" !linear_run_after_dse exec_linear_prog linear;
+                    let cfg = nop_elimination cfg in
+                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "NopElim";
+                    dump (!cfg_dump >*> fun s -> s ^ "3") dump_cfg_prog cfg
+                      (call_dot "cfg-after-nop" "CFG after NOP elim");
+                    run "CFG after nop_elimination" !cfg_run_after_ne eval_cfgprog cfg;
 
-            let ltl = ltl_prog_of_linear linear () in
-            dump !ltl_dump dump_ltl_prog ltl
-              (fun file () -> add_to_report "ltl" "LTL" (Code (file_contents file)));
-            run "LTL" !ltl_run (exec_ltl_prog) ltl;
-            (if !ltl_debug then debug_ltl_prog input ltl !heapsize !params);
 
-            dump !riscv_dump dump_riscv_prog ltl (fun file () ->
-                add_to_report "riscv" "RISC-V" (Code (file_contents file));
-                ignore (compile_rv basename file ()));
-            if not !Options.nostart then begin
-              run "Risc-V" !riscv_run (exec_rv_prog ltl basename) !riscv_dump
-            end;
+                    let rtl = rtl_of_cfg cfg in
+                    dump !rtl_dump dump_rtl_prog rtl
+                      (fun file () -> add_to_report "rtl" "RTL" (Code (file_contents file)));
+                    run "RTL" !rtl_run exec_rtl_prog rtl;
+
+                    let linear = linear_of_rtl rtl in
+                    let lives = liveness_linear_prog linear in
+                    dump !linear_dump (fun oc -> dump_linear_prog oc (Some lives)) linear
+                      (fun file () -> add_to_report "linear" "Linear" (Code (file_contents file)));
+                    run "Linear" !linear_run exec_linear_prog linear;
+
+                    let linear = dse_prog linear lives in
+                    record_compile_result "DSE";
+                    dump (!linear_dump >*> fun s -> s ^ "1")
+                      (fun oc -> dump_linear_prog oc (Some lives)) linear
+                      (fun file () -> add_to_report "linear-after-dse" "Linear after DSE"
+                          (Code (file_contents file)));
+                    run "Linear after DSE" !linear_run_after_dse exec_linear_prog linear;
+
+                    match ltl_prog_of_linear linear with
+                    | Error msg -> record_compile_result ~error:(Some msg) "LTL"
+                    | OK ltl ->
+                      dump !ltl_dump dump_ltl_prog ltl
+                        (fun file () -> add_to_report "ltl" "LTL" (Code (file_contents file)));
+                      run "LTL" !ltl_run (exec_ltl_prog) ltl;
+                      (if !ltl_debug then debug_ltl_prog input ltl !heapsize !params);
+
+                      dump !riscv_dump (fun oc p ->
+                          match dump_riscv_prog oc p with
+                          | OK _ -> ()
+                          | Error msg -> record_compile_result ~error:(Some msg) "RISCV"
+                        ) ltl (fun file () ->
+                          add_to_report "riscv" "RISC-V" (Code (file_contents file));
+                          ignore (compile_rv basename file ()));
+                      if not !Options.nostart then begin
+                        run "Risc-V" !riscv_run (exec_rv_prog ltl basename) !riscv_dump
+                      end;
 
       end;
 

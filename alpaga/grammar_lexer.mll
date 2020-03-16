@@ -1,5 +1,6 @@
 {
 open Grammar_parser_yacc
+open Lexing
 }
 
 let digit = ['0'-'9']
