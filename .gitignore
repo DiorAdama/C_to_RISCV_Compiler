@@ -12,6 +12,7 @@ tests/**/*.lex
 tests/**/*.linear
 tests/**/*.linear1
 tests/**/*.ltl
+tests/**/*.rig
 tests/**/*.rtl
 tests/**/*.s
 tests/**/*.svg
