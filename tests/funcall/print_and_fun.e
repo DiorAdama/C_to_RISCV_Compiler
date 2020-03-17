@@ -1,16 +1,16 @@
 
-int g(int x){
+g(x){
   return x;
 }
 
-int f(int a, int b){
+f(a, b){
   b = g(8);
   print(a);
   print(b);
   return 0;
 }
 
-int main(int argc, char* argv[]){
+main(){
   f(3,4);
   return 0;
 }

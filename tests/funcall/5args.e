@@ -1,8 +1,6 @@
-int main(int argc,char* argv[]){
-  int x = atoi(argv[1]);
-  int y = atoi(argv[2]);
+main(x, y){
   return f(x,x,y,y,x*2);
 }
-int f(int x,int y,int z,int t,int u){
+f(x, y, z, t, u){
   return x + y + z + t + u;
 }

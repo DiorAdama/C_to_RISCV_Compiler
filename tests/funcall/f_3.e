@@ -1,6 +1,6 @@
-int main(int argc,char* argv[]){
+main(){
   return f();
 }
-int f(){
+f(){
  return 3;
 }

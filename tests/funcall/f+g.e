@@ -1,10 +1,10 @@
-int f(int x){
+f(x){
   return x + 2;
 }
-int g(int y){
+g(y){
   return y * 3;
 }
-int main(int argc,char* argv[]){
+main(){
   return f(8) + g(5);
 }
 

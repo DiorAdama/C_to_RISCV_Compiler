@@ -1,12 +1,10 @@
-int gcd(int a,int b){
+gcd(a,b){
  if(b == 0){
    return a;
  } else {
    return gcd(b, a % b);
  }
 }
-int main(int argc,char* argv[]){
-  int a = atoi(argv[1]);
-  int b = atoi(argv[2]);
+main(a, b){
   return gcd(a,b);
 }

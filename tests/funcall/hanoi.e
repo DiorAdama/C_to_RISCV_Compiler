@@ -1,12 +1,11 @@
-int main(int argc,char* argv[]){
-  int ndisque = atoi(argv[1]);
+main(ndisque){
   return hanoi(ndisque);
 }
-int hanoi(int n)
+hanoi(n)
 {
   if(n > 0)
     {
-      int x = hanoi(n-1);
+      x = hanoi(n-1);
       return 1 + 2 * x;
     }
   return 0;

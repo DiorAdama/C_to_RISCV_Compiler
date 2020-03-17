@@ -1,14 +1,13 @@
-int g(int a, int b){
+g(a,b){
   print(a);
   print(b);
   return (b - a);
 }
-int f(int a, int b){
+f(a,b){
   print(a);
   print(b);
   return g(b, a);
 }
-int main(int argc, char* argv[]){
-  return f(atoi(argv[1]),
-           atoi(argv[2]));
+main(x, y){
+  return f(x, y);
 }
