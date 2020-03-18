@@ -66,22 +66,22 @@ let store_loc tmp allocation r =
   | Some (Stk o) -> OK ([LStore(reg_fp, !Archi.wordsize * o, tmp, !Archi.wordsize)], tmp)
   | Some (Reg r) -> OK ([], r)
 
-(* saves registers in [to_save] on the stack at offsets [fp + o, fp + o - 8, fp
-   + o - 16...]. Returns:
+(* saves registers in [to_save] on the stack at offsets [fp + 8 * o, fp + 8 * (o
+   - 1), fp + 8 * (o - 2)...]. Returns:
 
    - an association list [(reg,ofs)] (meaning register reg is saved at [fp+ofs])
-   - the list of store instructions
-   - the next offset to be written.
-*)
+   - the list of store instructions - the next offset to be written. *)
 let save_caller_save to_save ofs =
   List.fold_left (fun (instrs, arg_saved, ofs) reg ->
-      (instrs @ [LStore(reg_fp, ofs, reg, !Archi.wordsize)],
-       (reg,ofs)::arg_saved, ofs - !Archi.wordsize)
+      (instrs @ [LStore(reg_fp, !Archi.wordsize * ofs, reg, !Archi.wordsize)],
+       (reg,ofs)::arg_saved, ofs - 1)
     ) ([], [], ofs) to_save
 
 (* Given a list [(reg,ofs)], loads [fp+ofs] into [reg]. *)
-let restore_caller_save =
-  List.map (fun (reg, ofs) -> LLoad(reg, reg_fp, ofs, !Archi.wordsize))
+let restore_caller_save arg_saved =
+  List.map
+    (fun (reg, ofs) -> LLoad(reg, reg_fp, !Archi.wordsize * ofs, !Archi.wordsize))
+    arg_saved
 
 let num_parameters_passed_on_stack regs =
   let r = List.length regs - number_of_arguments_passed_in_registers in
@@ -110,7 +110,7 @@ let overwritten_args rargs allocation =
   (* [ltl_args] contains the locations of RTL args after allocation. *)
     list_map_res (fun r -> match Hashtbl.find_option allocation r with
         | None -> Error (Format.sprintf
-                              "pass_parameters: Couldn't allocate register r%d."
+                              "overwritten_args: Couldn't allocate register r%d."
                               r)
         | Some loc -> OK loc
       ) rargs >>= fun ltl_args ->
@@ -253,42 +253,15 @@ let rtl_to_ltl_registers allocation l =
    them. This gives a list of machine registers used by the LTL function. We
    need to add also the registers that will be used for argument passing. *)
 
-let read_ltl_regs_clever fname l allocation =
-  read_rtl_regs l |> rtl_to_ltl_registers allocation
-let written_ltl_regs_clever fname l allocation =
+let written_ltl_regs fname l allocation =
   written_rtl_regs l |> rtl_to_ltl_registers allocation
 
-let read_ltl_regs fname l allocation =
-  read_ltl_regs_clever fname l allocation
-
-let written_ltl_regs fname l allocation =
-  written_ltl_regs_clever fname l allocation
-
-(* We propose three different strategies for caller-save registers:
-   - [CSS_all] : save all registers before calling a function
-   - [CSS_read] : save all registers that are read in the calling function,
-     we might need them later in the function
-   - [CSS_live] : save all registers that are live after the call to the
-     function, this is more precise than [CSS_read].
-*)
-type caller_save_strategy =
-  | CSS_all
-  | CSS_read
-  | CSS_live
-
-let caller_save live_out allocation read_regs rargs
-    (strategy: caller_save_strategy) =
-  let l =
-    match strategy with
-    | CSS_all -> OK (range 32 |> Set.of_list)
-    | CSS_read -> OK read_regs
-    | CSS_live ->
-      let live_after = live_out in
-      let live_after_ltl = live_after |> rtl_to_ltl_registers allocation in
-      overwritten_args rargs allocation >>= fun overwritten_args_tosave ->
-      OK (Set.union live_after_ltl overwritten_args_tosave)
-  in
-  l >>= fun l -> OK (Set.intersect l (Set.of_list (arg_registers @ reg_tmp)))
+let caller_save live_out allocation rargs =
+  let live_after = live_out in
+  let live_after_ltl = live_after |> rtl_to_ltl_registers allocation in
+  overwritten_args rargs allocation >>= fun overwritten_args_tosave ->
+  let l = Set.union live_after_ltl overwritten_args_tosave in
+  OK (Set.intersect l (Set.of_list (arg_registers @ reg_tmp)))
 
 (* This generates LTL instructions for a given Linear/RTL instruction. In most
    cases, the transformation amounts to 'loading' RTL registers in LTL locations
@@ -301,7 +274,7 @@ let caller_save live_out allocation read_regs rargs
    code of the caller. (The rationale being, if we don't read this variable,
    then we don't need its value to be preserved across function calls.) These
    registers are saved at [fp - 8 * (curstackslot + 1)] *)
-let ltl_instrs_of_linear_instr fname live_out allocation read_regs
+let ltl_instrs_of_linear_instr fname live_out allocation
     numspilled epilogue_label ins =
   match ins with
   | Rbinop (b, rd, rs1, rs2) ->
@@ -399,10 +372,9 @@ let ltl_fun_of_linear_fun linprog
                  List.concat (List.map make_pop
                                 (List.rev (Set.to_list callee_saved_regs))) @
                  [LJmpr reg_ra] in
-  let read_regs_f = read_ltl_regs fname linearfunbody allocation in
   list_map_resi (fun i ->
       ltl_instrs_of_linear_instr fname (Hashtbl.find_default live_out i Set.empty)
-        allocation read_regs_f numspilled epilogue_label) linearfunbody
+        allocation numspilled epilogue_label) linearfunbody
   >>= fun l ->
   let instrs = List.concat l 
   in

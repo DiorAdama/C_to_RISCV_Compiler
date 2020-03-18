@@ -53,7 +53,7 @@ let eval_cfgfun oc st cfgfunname { cfgfunargs;
   let st' = { st with env = Hashtbl.create 17 } in
   match List.iter2 (fun a v -> Hashtbl.replace st'.env a v) cfgfunargs vargs with
   | () -> eval_cfginstr oc st' cfgfunbody cfgentry >>= fun (v, st') ->
-    OK (Some v, st')
+    OK (Some v, {st' with env = st.env})
   | exception Invalid_argument _ ->
     Error (Format.sprintf "CFG: Called function %s with %d arguments, expected %d.\n"
              cfgfunname (List.length vargs) (List.length cfgfunargs)

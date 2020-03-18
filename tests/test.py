@@ -89,7 +89,7 @@ class Displayer(Thread):
         print()
 
 # The number of columns in the HTML table
-numcols = len(args.passes)
+numcols = len(args.passes) + 1 # 1 colonne pour le lexer
 
 def display_verbatim(body):
     return '\n'.join(['\n'.join(textwrap.wrap(line, 90,
@@ -211,16 +211,14 @@ class CommandExecutor(Thread):
                                                         tofile=out_lex_file_name)
                             diff = list(diff)
                             if diff == []:
-                                compsted_td = ""
+                                compstep_td = "<td class=\"good\">OK</td>"
                             else:
-                                compstep_td = "<td class=\"bad\" style=\"text-align: left;\" colspan=\"{}\">{} not-what-expected:<br><pre>".format( numcols - curcol, r['compstep'])
+                                compstep_td = "<td class=\"warn\" style=\"text-align: left;\" >{} not-what-expected:<br><pre>".format(r['compstep'])
                                 for line in diff:
                                     compstep_td += line
                                 compstep_td += "{}</pre></td>"
-                                self.s += compstep_td
-                                break
                     except:
-                        compstep_td = ""
+                        compstep_td = "<td>No .expect_lexer file</td>"
 
 
                 self.s += compstep_td
@@ -284,6 +282,9 @@ td {
 .good{
     background-color: #c7f0d2;
 }
+.warn{
+    background-color: orange;
+}
 fieldset {
     display: inline;
     margin: 1em;
@@ -292,7 +293,7 @@ fieldset {
 </style>
 <table>
 <tr>
-<th>File</th>""")
+<th>File</th><th>Lexer</th>""")
 for p in args.passes:
     res_html.write("<th>{}</th>\n".format(p))
 res_html.write("""
@@ -309,8 +310,8 @@ for t in threads:
 res_html.close()
 
 numtotal = len(threads)
-ok = [t for t in threads if t.lastcorrectstep == numcols-1]
-ko = [t for t in threads if t.lastcorrectstep != numcols-1]
+ok = [t for t in threads if t.lastcorrectstep == numcols-2]
+ko = [t for t in threads if t.lastcorrectstep != numcols-2]
 
 print("{}/{} OK.".format(len(ok), numtotal))
 print("{}/{} KO : {}".format(len(ko), numtotal,list(map((lambda t: (t.f, t.lastcorrectstep)), ko))))
