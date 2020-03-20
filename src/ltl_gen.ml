@@ -303,7 +303,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     let (save_a_regs, arg_saved, ofs) =
       save_caller_save
         (range 32)
-        (- !Archi.wordsize * (numspilled+1)) in
+        (- (numspilled+1)) in
     let parameter_passing =
       match Hashtbl.find_option allocation r with
       | None -> Error (Format.sprintf "Could not find allocation for register %d\n" r)
@@ -312,7 +312,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     in
     parameter_passing >>= fun parameter_passing ->
     OK (LComment "Saving a0-a7,t0-t6" :: save_a_regs @
-        LAddi(reg_sp, reg_s0, ofs) ::
+        LAddi(reg_sp, reg_s0, !Archi.wordsize * ofs) ::
         parameter_passing @
         LCall "print" ::
         LComment "Restoring a0-a7,t0-t6" :: restore_caller_save arg_saved)
