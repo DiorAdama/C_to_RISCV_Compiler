@@ -164,6 +164,9 @@ let _ =
     iter_first (toks, nts, rules) ();
     iter_follownt (toks, nts, rules) ();
     fill_lltable (toks, nts, rules) ();
+    let has_conflict = check_conflicts (toks, nts, rules) () in
+    if has_conflict
+    then Printf.fprintf stderr "Warning! There is a conflict in your grammar. Check the prediction table for more details.\n";
     (match !table_file with
      | Some tfile -> let oc = open_out tfile in
        print_html (toks, nts, rules) (Format.formatter_of_out_channel oc) ();

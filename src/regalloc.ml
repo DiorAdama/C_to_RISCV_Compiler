@@ -41,11 +41,12 @@ let regs_in_instr_list (l: rtl_instr list) : reg Set.t =
 let regalloc_on_stack_fun (f: linear_fun) : ((reg, loc) Hashtbl.t * int)=
   let allocation = Hashtbl.create 10 in
   let regs = regs_in_instr_list f.linearfunbody in
+  let regs = Set.diff regs (Set.of_list f.linearfunargs) in
   let next_stack_slot =
     List.fold_left (fun next_stack_slot r ->
         Hashtbl.replace allocation r (Stk (next_stack_slot));
         next_stack_slot - 1
-      ) 0 (Set.to_list regs) in
+      ) (-1) (Set.to_list regs) in
   (allocation, next_stack_slot)
 
 
@@ -248,7 +249,7 @@ let regalloc_fun (f: linear_fun)
   let next_stack_slot =
     List.fold_left (fun next_stack_slot decision ->
         allocate allocation rig all_colors next_stack_slot decision
-      ) 0 stack in
+      ) (-1) stack in
   (rig, allocation, next_stack_slot)
 
 

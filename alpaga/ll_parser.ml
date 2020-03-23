@@ -101,6 +101,17 @@ let string_of_lltype = function
   | Follow i -> Printf.sprintf "<a style='color:red;' href=\"#rule-%d\">%d</a>" i i
 
 
+let check_conflicts (toks,nts,rules) () =
+  List.fold_left
+    (fun acc x ->
+       List.fold_left (fun acc t ->
+           let rs = (hashget_def lltable (x,t) []) in
+           if List.length rs > 1 then true else acc
+          ) acc toks
+    ) false
+    nts
+
+
 let print_table (toks,nts,rules) oc () =
   Format.fprintf oc "<!DOCTYPE html>" ;
   Format.fprintf oc "<html><head><link rel='stylesheet' type='text/css' href='style.css'/></head>\n";

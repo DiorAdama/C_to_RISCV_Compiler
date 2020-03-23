@@ -299,7 +299,6 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
     OK (ls @ LMov(rd, rs) :: ld)
   | Rprint r ->
-
     let (save_a_regs, arg_saved, ofs) =
       save_caller_save
         (range 32)
@@ -312,7 +311,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     in
     parameter_passing >>= fun parameter_passing ->
     OK (LComment "Saving a0-a7,t0-t6" :: save_a_regs @
-        LAddi(reg_sp, reg_s0, !Archi.wordsize * ofs) ::
+        LAddi(reg_sp, reg_s0, !Archi.wordsize * (ofs + 1)) ::
         parameter_passing @
         LCall "print" ::
         LComment "Restoring a0-a7,t0-t6" :: restore_caller_save arg_saved)
@@ -400,7 +399,7 @@ let ltl_prog_of_linear lp =
         let f_alloc =
           match Hashtbl.find_option allocations fname with
           | None -> (Hashtbl.create 0, 0)
-          | Some (rig, allocation, next_stack_slot) -> (allocation, - next_stack_slot)
+          | Some (rig, allocation, next_stack_slot) -> (allocation, - next_stack_slot - 1)
         in
         let f_lives =
           match Hashtbl.find_option lives fname with
