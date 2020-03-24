@@ -90,6 +90,7 @@ let make_parser  (table: string*string -> lltype list)
                           "string" -> "\"\""
                         | "int" -> "0"
                         | "bool" -> "false"
+                        | "char" -> "'a'"
                         | _ -> failwith (Printf.sprintf "Don't know how to generate a default value of type %s" ty)
                 )
           end
