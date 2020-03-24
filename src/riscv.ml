@@ -163,9 +163,11 @@ let riscv_load_args oc : unit res =
            List.map (fun i ->
                [LConst(reg_a0, i);
                 LCall("load_int_arg");
+                LBranch(Rceq, reg_a0, reg_zero, Printf.sprintf "riscv_load_arg_%d" i);
                 LCall("atoi");
                 LStore(reg_fp, - !Archi.wordsize*i,
-                       reg_a0, !Archi.wordsize)
+                       reg_a0, !Archi.wordsize);
+                LLabel(Printf.sprintf "riscv_load_arg_%d" i);
                ]) in
   (* for each arg in [1..8]
      ld a{arg-1}, -8*arg(fp)
@@ -181,6 +183,9 @@ let riscv_fun_load_arg oc () =
   ("load_int_arg",{
       ltlfunargs = 0;
       (*
+
+         *( fp + a0 * wordsize + 8)
+
          t0 <- Archi.wordsize (in this example 8)
          mul a0, a0, t0
          add t0, fp, a0
