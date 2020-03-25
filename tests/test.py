@@ -183,9 +183,10 @@ class CommandExecutor(Thread):
                     cls = ""
                 if cls == "good":
                     self.lastcorrectstep = curcol
-                self.s += make_td(["Ret = {}.<br>Output = <pre>'{}'</pre>{}".
+                self.s += make_td(["Ret = {}.<br>Output = <pre>'{}'</pre>{}<br>Time: {:.2f} seconds.<br>".
                                    format(r['retval'], r['output'],
-                                          "Error: "+r['error'] if r['error'] != None else ""),
+                                          "Error: "+r['error'] if r['error'] != None else "",
+                                          r['time']),
                                    "class=\"{}\"".format(cls)])
                 curcol+=1
             elif "compstep" in r:

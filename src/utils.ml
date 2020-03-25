@@ -134,21 +134,22 @@ module Mem : sig
 end = struct
   type t = int array * int list ref * (int * int) list ref
   let write_bytes (m,rl,wl) addr bytes =
-    write_mem_bytes m addr bytes >>= fun w -> wl := !wl @ w; OK ()
+    write_mem_bytes m addr bytes >>= fun w ->
+    wl := w @ !wl; OK ()
   let write_char (m,rl,wl) addr c =
-    write_mem_char m addr c >>= fun w -> wl := !wl @ w; OK ()
+    write_mem_char m addr c >>= fun w -> wl := w @ !wl; OK ()
   let read_bytes (m,rl,wl) addr len =
     read_mem_bytes m addr len >>= fun (vl,addrl) ->
-    rl := !rl @ addrl; OK vl
+    rl := addrl @ !rl ; OK vl
   let read_bytes_as_int (m,rl,wl) addr len =
     read_mem_bytes_as_int m addr len >>= fun (v,addrl) ->
-    rl := !rl @ addrl; OK v
+    rl := addrl @ !rl; OK v
   let read_char (m,rl,wl) addr =
     read_mem_char m addr >>= fun (v,addrl) ->
-    rl := !rl @ addrl; OK v
+    rl := addrl @ !rl; OK v
   let init n = Array.init n (fun _ -> 0), ref [], ref []
-  let read_log (_,rl,_) () = let r = !rl in rl := []; r
-  let write_log (_,_,wl) () = let w = !wl in wl := []; w
+  let read_log (_,rl,_) () = let r = !rl in rl := []; List.rev r
+  let write_log (_,_,wl) () = let w = !wl in wl := []; List.rev w
 end
 
 let assoc_opti k l =

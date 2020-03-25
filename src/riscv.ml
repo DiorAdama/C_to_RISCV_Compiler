@@ -159,16 +159,18 @@ let riscv_load_args oc : unit res =
        call atoi
        sd a0, -8*arg(fp)
   *)
-  let l1 = nargs |>
+  let l1 = (nargs |>
            List.map (fun i ->
                [LConst(reg_a0, i);
                 LCall("load_int_arg");
-                LBranch(Rceq, reg_a0, reg_zero, Printf.sprintf "riscv_load_arg_%d" i);
+                LBranch(Rceq, reg_a0, reg_zero, Printf.sprintf "riscv_load_arg_end");
                 LCall("atoi");
                 LStore(reg_fp, - !Archi.wordsize*i,
                        reg_a0, !Archi.wordsize);
-                LLabel(Printf.sprintf "riscv_load_arg_%d" i);
-               ]) in
+               ]))
+           @
+      [[LLabel(Printf.sprintf "riscv_load_arg_end")]]
+  in
   (* for each arg in [1..8]
      ld a{arg-1}, -8*arg(fp)
   *)

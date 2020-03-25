@@ -78,9 +78,9 @@ let rec json_summary j =
   | `List l -> `List (List.map json_summary l)
   | _ -> j
 let trace_regs st =
-  Hashtbl.fold (fun r v acc ->
+  Array.fold_lefti (fun acc r v ->
       (string_of_reg r, `Int v) :: acc
-    ) st.regs []
+    ) [] st.regs
   |> fun l -> `Assoc l
 
 let make_trace ip (st: ltl_state) out () =
@@ -177,10 +177,10 @@ let debugger_message progname breaks state st prog rstop client : unit Lwt.t =
                                 ) funinfo))
                             ]) :: acc
                   ) !st.funs [] |> fun funboundaries ->
-                Hashtbl.fold (fun ip ins acc ->
+                Array.fold_lefti (fun acc ip ins ->
                     (Format.fprintf Format.str_formatter "%a" dump_ltl_instr ins);
                     (string_of_int ip, `String (Format.flush_str_formatter ())) :: acc
-                  ) !st.code [] |> fun code ->
+                  ) [] !st.code |> fun code ->
                 `List ( [`Assoc [("progname", `String progname);
                                 ("params", `List (List.map (fun x -> `Int x) params))];
                          `Assoc [("funboundaries", `List funboundaries)];

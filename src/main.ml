@@ -104,6 +104,7 @@ type run_result = {
   retval: int option;
   output: string;
   error: string option;
+  time: float;
 }
 
 type compile_result = {
@@ -120,14 +121,16 @@ let results = ref []
 
 let run step flag eval p =
   if flag then begin
+    let starttime = Unix.gettimeofday () in
     let res = match eval Format.str_formatter p !heapsize !params with
       | exception e ->
         Error (Printexc.to_string e)
       | e -> e in
+    let timerun = Unix.gettimeofday () -. starttime in
     begin match res with
       | OK v ->
         let output = Format.flush_str_formatter () in
-        results := !results @ [RunRes { step ; retval = v; output; error = None}];
+        results := !results @ [RunRes { step ; retval = v; output; error = None; time = timerun}];
         add_to_report step ("Run " ^ step) (
           Paragraph 
             (
@@ -135,11 +138,12 @@ let run step flag eval p =
               ^ Printf.sprintf "Mem size : %d bytes<br>\n" !heapsize
               ^ Printf.sprintf "Return value : %s<br>\n" (match v with | Some v -> string_of_int v | _ -> "none")
               ^ Printf.sprintf "Output : <pre style=\"padding: 1em; background-color: #ccc;\">%s</pre>\n" output
+              ^ Printf.sprintf "Time : %f seconds<br>\n" timerun
             )
         )
       | Error msg ->
         let output  = Format.flush_str_formatter () in
-        results := !results @ [RunRes { step ; retval = None; output; error = Some msg}];
+        results := !results @ [RunRes { step ; retval = None; output; error = Some msg; time = timerun}];
         add_to_report step ("Run " ^ step) (
           Paragraph 
             (
@@ -148,6 +152,7 @@ let run step flag eval p =
               ^ Printf.sprintf "Return value : none<br>\n"
               ^ Printf.sprintf "Output : <pre style=\"padding: 1em; background-color: #ccc;\">%s</pre>\n" output
               ^ Printf.sprintf "Error : <pre style=\"padding: 1em; background-color: #fcc;\">\n%s</pre>\n" msg
+              ^ Printf.sprintf "Time : %f seconds<br>\n" timerun
             )
         )
 
@@ -369,11 +374,12 @@ let _ =
           | Some s -> `String s
         in
         let j = `List (List.map (function
-            | RunRes { step; retval; output; error; } ->
+            | RunRes { step; retval; output; error; time } ->
               `Assoc [("runstep",`String step);
                       ("retval", match retval with Some r -> `Int r | None -> `Null);
                       ("output", `String output);
                       ("error", jstring_of_ostring error);
+                      ("time", `Float time)
                      ]
             | CompRes { step; error; data } ->
               `Assoc [("compstep",`String step);
