@@ -1,4 +1,4 @@
-int main(int argc,char* argv[]){
+int main(){
   int t[2];
   t[0] = 1;
   t[1] = 2;

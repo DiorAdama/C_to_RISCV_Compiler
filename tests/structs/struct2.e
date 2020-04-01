@@ -3,7 +3,7 @@ struct mastruct {
   int y;
 };
 
-int main(int argc,char* argv[]){
+int main(){
   struct mastruct S;
   struct mastruct T;
   S.x = 12;

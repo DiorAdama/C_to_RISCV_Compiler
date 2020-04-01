@@ -6,7 +6,7 @@ struct my_struct {
 
 struct my_struct objs[2];
 
-int main(int argc, char** argv){
+int main(){
   int i = 0;
   while (i < 2){
     (objs[i]).x = i;

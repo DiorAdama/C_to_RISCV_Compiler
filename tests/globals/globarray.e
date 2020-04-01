@@ -2,7 +2,7 @@
 int max = 20;
 int objs[20];
 
-int main(int argc, char** argv){
+int main(){
   int i = 0;
   int sum = 0;
   while (i < max){
