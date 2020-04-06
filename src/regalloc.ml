@@ -272,12 +272,12 @@ let dump_interf_graph oc (fname, rig, allocation) =
   Format.fprintf oc "subgraph cluster_%s{\n" fname;
   Format.fprintf oc "label=\"%s\";\n" fname;
   Hashtbl.keys rig |> Enum.iter (fun r ->
-      Format.fprintf oc "r%d [style=filled,fillcolor=\"%s\"];\n" r (color_of_allocation r)
+      Format.fprintf oc "%s_r%d [label=\"r%d\",style=filled,fillcolor=\"%s\"];\n" fname r r (color_of_allocation r)
     );
   Hashtbl.iter
     (fun i s ->
        Set.iter (fun x ->
-           Format.fprintf oc "r%d -> r%d;\n" i x
+           Format.fprintf oc "%s_r%d -> %s_r%d;\n" fname i fname x
          ) s;)
     rig;
   Format.fprintf oc "}\n"
