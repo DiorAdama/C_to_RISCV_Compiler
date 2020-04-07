@@ -43,14 +43,9 @@ let print_binop (b: binop) =
   | Elang.Emul -> "mul"
   | Elang.Emod -> "remu"
   | Elang.Exor -> "xor"
-  | Elang.Ediv -> "div"
+  | Elang.Ediv -> "divu"
   | Elang.Esub -> "sub"
-  | Elang.Eclt -> "slt"
-  | Elang.Ecle -> "sle"
-  | Elang.Ecgt -> "sgt"
-  | Elang.Ecge -> "sge"
-  | Elang.Eceq -> "seq"
-  | Elang.Ecne -> "sne"
+  | _ -> assert false
 
 let print_unop (u: unop) =
   match u with
@@ -87,13 +82,13 @@ let dump_riscv_instr oc (i: ltl_instr) =
         (* 'rd <- rs1 <= rs2' == 'rd <- rs2 < rs1; rd <- not rd' *)
         Format.fprintf oc "slt %s, %s, %s\n"
           (print_reg rd) (print_reg rs2) (print_reg rs1);
-        Format.fprintf oc "not %s, %s\n"
+        Format.fprintf oc "seqz %s, %s\n"
           (print_reg rd) (print_reg rd);
         OK ()
       | Elang.Ecge ->
         Format.fprintf oc "slt %s, %s, %s\n"
           (print_reg rd) (print_reg rs1) (print_reg rs2);
-        Format.fprintf oc "not %s, %s\n"
+        Format.fprintf oc "seqz %s, %s\n"
           (print_reg rd) (print_reg rd);
         OK ()
       | Elang.Eceq ->
@@ -230,7 +225,7 @@ let riscv_prelude oc =
   OK ()
 
 let dump_riscv_prog oc lp : unit res =
-  if !nostart then OK () else riscv_prelude oc >>= fun _ ->
+  (if !nostart then OK () else riscv_prelude oc) >>= fun _ ->
   Format.fprintf oc ".global main\n";
   list_iter_res (function
         (fname, Gfun f) -> dump_riscv_fun oc (fname,f)
