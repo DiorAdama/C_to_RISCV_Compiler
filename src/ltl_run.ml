@@ -101,11 +101,11 @@ let exec_ltl_instr oc ip st : (int option) res =
   | LStore(rt, i, rs, sz) ->
     get_reg st rt $ fun vt ->
       get_reg st rs $ fun vs ->
-        Mem.write_bytes st.mem (vt + i)  (split_bytes sz vs) >>= fun _ ->
+        Mem.write_bytes st.mem (vt + i)  (split_bytes (size_of_mas sz) vs) >>= fun _ ->
         next ip
   | LLoad(rd, rt, i, sz) ->
     get_reg st rt $ fun vt ->
-      Mem.read_bytes_as_int st.mem (vt + i) sz >>= fun (v) ->
+      Mem.read_bytes_as_int st.mem (vt + i) (size_of_mas sz) >>= fun (v) ->
       Array.set st.regs rd v;
       next ip
   | LMov(rd, rs) ->
@@ -201,9 +201,9 @@ let init_state memsize lp params =
   List.iteri (fun i p ->
       if i >= number_of_arguments_passed_in_registers
       then begin
-        let sp = Array.get regs reg_sp - !Archi.wordsize in
+        let sp = Array.get regs reg_sp - (Archi.wordsize ()) in
         Array.set regs reg_sp sp;
-        Mem.write_bytes mem sp (split_bytes !Archi.wordsize p) >>!
+        Mem.write_bytes mem sp (split_bytes (Archi.wordsize ()) p) >>!
         ignore
       end else
         begin
@@ -211,7 +211,7 @@ let init_state memsize lp params =
         end
     ) params;
   let mem_next = ref (codesize + 8) in
-  Mem.write_bytes mem codesize (split_bytes !Archi.wordsize !mem_next) >>!
+  Mem.write_bytes mem codesize (split_bytes (Archi.wordsize ()) !mem_next) >>!
   fun _ ->
   Printf.eprintf "numlabels = %d\n" (Hashtbl.length labels);
   Printf.eprintf "labels = %s\n" (Hashtbl.keys labels |> List.of_enum |> String.concat ", ");

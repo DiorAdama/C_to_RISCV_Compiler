@@ -83,9 +83,9 @@ let dump_ltl_instr oc (i: ltl_instr) =
     Format.fprintf oc "%s <- %s %s"
       (print_reg rd) (print_unop u)  (print_reg rs)
   | LStore(rt, i, rs, sz) ->
-    Format.fprintf oc "%s{%d}[%d] <- %s" (print_reg rt) sz i (print_reg rs)
+    Format.fprintf oc "%s%s[%d] <- %s" (print_reg rt) (string_of_mem_access_size sz) i (print_reg rs)
   | LLoad(rd, rt, i, sz) ->
-    Format.fprintf oc "%s <- %s{%d}[%d]" (print_reg rd) (print_reg rt) sz i
+    Format.fprintf oc "%s <- %s%s[%d]" (print_reg rd) (print_reg rt) (string_of_mem_access_size sz) i
   | LMov(rd, rs) ->
     Format.fprintf oc "%s <- %s" (print_reg rd) (print_reg rs)
   | LLabel l ->

@@ -30,6 +30,10 @@ let nostats = ref false
 let has_mul = ref true
 let no_dump = ref false
 let no_dot = ref false
+let no_cfg_constprop = ref false
+let no_cfg_dae = ref false
+let no_cfg_ne = ref false
+let no_linear_dse = ref false
 
 let alloc_order_st = ref true
 let naive_regalloc = ref true

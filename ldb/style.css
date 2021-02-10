@@ -54,7 +54,7 @@ html {
 }
 #body{
     display: grid;
-    grid-template-columns: [ctrl] 300px [code] 250px [outcfg] 600px [state] 700px;
+    grid-template-columns: [ctrl] 250px [code] 400px [outcfg] 500px [state] 700px;
     grid-template-rows: [row1] 200px [row2] 200px [row3] 400px [row4];
 }
 #code {

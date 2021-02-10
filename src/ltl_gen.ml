@@ -7,6 +7,8 @@ open Prog
 open Utils
 open Regalloc
 open Linear_liveness
+open Report
+open Options
 
 (* list of registers used to store arguments. [a0-a7] *)
 let arg_registers =
@@ -18,12 +20,12 @@ let arg_registers =
 *)
 
 let make_push r =
-  [LSubi(reg_sp, reg_sp, !Archi.wordsize);
-   LStore(reg_sp, 0, r, !Archi.wordsize)]
+  [LSubi(reg_sp, reg_sp, (Archi.wordsize ()));
+   LStore(reg_sp, 0, r, (archi_mas ()))]
 
 let make_pop r =
-  [LLoad(r, reg_sp, 0, !Archi.wordsize);
-   LAddi(reg_sp, reg_sp, !Archi.wordsize)]
+  [LLoad(r, reg_sp, 0, (archi_mas ()));
+   LAddi(reg_sp, reg_sp, (Archi.wordsize ()))]
 
 let make_sp_sub v =
   [LSubi(reg_sp, reg_sp, v)]
@@ -39,12 +41,12 @@ let make_loc_mov src dst =
   match src, dst with
   | Stk osrc , Stk odst ->
     let rtmp = reg_tmp1 in
-    [LLoad(rtmp, reg_fp, !Archi.wordsize * osrc, !Archi.wordsize);
-     LStore(reg_fp, !Archi.wordsize * odst, rtmp, !Archi.wordsize)]
+    [LLoad(rtmp, reg_fp, (Archi.wordsize ()) * osrc, (archi_mas ()));
+     LStore(reg_fp, (Archi.wordsize ()) * odst, rtmp, (archi_mas ()))]
   | Stk osrc, Reg rdst ->
-    [LLoad(rdst, reg_fp, !Archi.wordsize * osrc, !Archi.wordsize)]
+    [LLoad(rdst, reg_fp, (Archi.wordsize ()) * osrc, (archi_mas ()))]
   | Reg rsrc, Stk ofst ->
-    [LStore(reg_fp, !Archi.wordsize * ofst, rsrc, !Archi.wordsize)]
+    [LStore(reg_fp, (Archi.wordsize ()) * ofst, rsrc, (archi_mas ()))]
   | Reg rsrc, Reg rdst ->
     [LMov(rdst,rsrc)]
 
@@ -54,7 +56,7 @@ let load_loc tmp allocation r =
   match Hashtbl.find_option allocation r with
   | None ->
     Error (Format.sprintf "Unable to allocate RTL register r%d." r)
-  | Some (Stk o) -> OK ([LLoad(tmp, reg_fp, !Archi.wordsize * o, !Archi.wordsize)], tmp)
+  | Some (Stk o) -> OK ([LLoad(tmp, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))], tmp)
   | Some (Reg r) -> OK ([], r)
 
 (* store_loc tmp allocation r = (l, r'). I want to write in RTL register r.
@@ -63,7 +65,7 @@ let store_loc tmp allocation r =
   match Hashtbl.find_option allocation r with
   | None ->
     Error (Format.sprintf "Unable to allocate RTL register r%d." r)
-  | Some (Stk o) -> OK ([LStore(reg_fp, !Archi.wordsize * o, tmp, !Archi.wordsize)], tmp)
+  | Some (Stk o) -> OK ([LStore(reg_fp, (Archi.wordsize ()) * o, tmp, (archi_mas ()))], tmp)
   | Some (Reg r) -> OK ([], r)
 
 (* saves registers in [to_save] on the stack at offsets [fp + 8 * o, fp + 8 * (o
@@ -73,14 +75,14 @@ let store_loc tmp allocation r =
    - the list of store instructions - the next offset to be written. *)
 let save_caller_save to_save ofs =
   List.fold_left (fun (instrs, arg_saved, ofs) reg ->
-      (instrs @ [LStore(reg_fp, !Archi.wordsize * ofs, reg, !Archi.wordsize)],
+      (instrs @ [LStore(reg_fp, (Archi.wordsize ()) * ofs, reg, (archi_mas ()))],
        (reg,ofs)::arg_saved, ofs - 1)
     ) ([], [], ofs) to_save
 
 (* Given a list [(reg,ofs)], loads [fp+ofs] into [reg]. *)
 let restore_caller_save arg_saved =
   List.map
-    (fun (reg, ofs) -> LLoad(reg, reg_fp, !Archi.wordsize * ofs, !Archi.wordsize))
+    (fun (reg, ofs) -> LLoad(reg, reg_fp, (Archi.wordsize ()) * ofs, (archi_mas ())))
     arg_saved
 
 let num_parameters_passed_on_stack regs =
@@ -192,13 +194,13 @@ let pass_parameters rargs allocation arg_saved =
           begin match src with
             | Reg rs ->  (rd::overwritten, [LMov(rd, rs)],[], npush)
             | Stk o -> (rd::overwritten,
-                        [LLoad(rd, reg_fp, !Archi.wordsize * o, !Archi.wordsize)],
+                        [LLoad(rd, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))],
                         [], npush)
           end else
           begin match src with
             | Reg rs -> (overwritten, [], make_push rs@pushes, npush+1)
             | Stk o ->  (overwritten, [],
-                         LLoad(reg_tmp1, reg_fp, !Archi.wordsize * o, !Archi.wordsize)
+                         LLoad(reg_tmp1, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))
                          ::make_push reg_tmp1 @ pushes,
                          npush+1)
           end
@@ -307,11 +309,11 @@ let ltl_instrs_of_linear_instr fname live_out allocation
       match Hashtbl.find_option allocation r with
       | None -> Error (Format.sprintf "Could not find allocation for register %d\n" r)
       | Some (Reg rs) -> OK [LMov(reg_a0, rs)]
-      | Some (Stk o) -> OK [LLoad(reg_a0, reg_fp, !Archi.wordsize * o, !Archi.wordsize)]
+      | Some (Stk o) -> OK [LLoad(reg_a0, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))]
     in
     parameter_passing >>= fun parameter_passing ->
     OK (LComment "Saving a0-a7,t0-t6" :: save_a_regs @
-        LAddi(reg_sp, reg_s0, !Archi.wordsize * (ofs + 1)) ::
+        LAddi(reg_sp, reg_s0, (Archi.wordsize ()) * (ofs + 1)) ::
         parameter_passing @
         LCall "print" ::
         LComment "Restoring a0-a7,t0-t6" :: restore_caller_save arg_saved)
@@ -364,7 +366,7 @@ let ltl_fun_of_linear_fun linprog
   let prologue =
     List.concat (List.map make_push (Set.to_list callee_saved_regs)) @
     LMov (reg_fp, reg_sp) ::
-    make_sp_sub (numspilled * !Archi.wordsize) @
+    make_sp_sub (numspilled * (Archi.wordsize ())) @
     [LComment "end prologue"] in
   let epilogue = LLabel epilogue_label ::
                  LMov(reg_sp, reg_fp) ::
@@ -411,3 +413,11 @@ let ltl_prog_of_linear lp =
     ) lp in
   prog
 
+let pass_ltl_gen linear =
+  match ltl_prog_of_linear linear with
+  | Error msg -> record_compile_result ~error:(Some msg) "LTL"; Error msg
+  | OK ltl ->
+    record_compile_result "LTL";
+    dump !ltl_dump dump_ltl_prog ltl
+      (fun file () -> add_to_report "ltl" "LTL" (Code (file_contents file)));
+    OK ltl

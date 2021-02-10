@@ -68,7 +68,8 @@ let make_nt (table: string*string -> lltype list) (toks,nts,rules) oc n () =
         ) (a::r);
       Printf.fprintf oc "Printf.sprintf \"}\" ^ \n"
   end;
-  Printf.fprintf oc "  Printf.sprintf \" but got '%%s' instead.\\n\" got\n";
+  Printf.fprintf oc "  Printf.sprintf \" but got '%%s' instead.\\n\" got\n ^ ";
+  Printf.fprintf oc "  Printf.sprintf \" '%%s' \\n\" (String.concat \",\" (List.map (fun (x, _) -> string_of_symbol x) (List.take 10 tokens)))\n";
   Printf.fprintf oc "  )";
   Printf.fprintf oc "\n  end\n\n"
 

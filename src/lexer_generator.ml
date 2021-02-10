@@ -63,7 +63,7 @@ let star_nfa n t =
 (* [nfa_of_regexp r freshstate t] construit un NFA qui reconnaît le même langage
    que l'expression régulière [r].
    [freshstate] correspond à un entier pour lequel il n'y a pas encore d'état dans 
-   le nfa. Il suffit d'incrémenter [freshstate] pour obtenir de nouveaux état non utilisés.
+   le nfa. Il suffit d'incrémenter [freshstate] pour obtenir de nouveaux états non utilisés.
    [t] est une fonction du type [string -> token option] utile pour les état finaux.
 *)
 let rec nfa_of_regexp r freshstate t =
@@ -446,11 +446,6 @@ let dfa_to_dot oc (n : dfa) (cl: char list): unit =
         ) l;
     ) n.dfa_states;
   Printf.fprintf oc "}\n"
-
-let alts l =
-  match l with
-    [] -> Eps
-  | a::r -> List.fold_left (fun acc r -> Alt(acc,r)) a l
 
 let nfa_of_list_regexp l =
   let (n, fs) = List.fold_left (fun (nfa, fs) (r,t) ->

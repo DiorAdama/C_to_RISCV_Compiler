@@ -53,10 +53,10 @@ let reg_ret = reg_a0
 type ltl_instr =
     LAddi of ltl_reg * ltl_reg * int
   | LSubi of ltl_reg * ltl_reg * int
-  | LStore of ltl_reg * int * ltl_reg * int (* LStore(rd, rofs, rs, sz) : store
+  | LStore of ltl_reg * int * ltl_reg * mem_access_size (* LStore(rd, rofs, rs, sz) : store
                                                value in [rs] on [sz] bytes at
                                                address [rd+rofs] *)
-  | LLoad of ltl_reg * ltl_reg * int * int (* LLoad(rd, rs, rofs, sz) : load
+  | LLoad of ltl_reg * ltl_reg * int * mem_access_size (* LLoad(rd, rs, rofs, sz) : load
                                               value at address [rs+rofs] on [sz]
                                               bytes in register [rd]. *)
   | LMov of ltl_reg * ltl_reg   (* LMov(rd, rs) : move value of [rs] into [rd].

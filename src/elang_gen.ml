@@ -2,6 +2,9 @@ open Ast
 open Elang
 open Prog
 open Utils
+open Report
+open Elang_print
+open Options
 
 let tag_is_binop =
   function
@@ -86,3 +89,13 @@ let make_eprog_of_ast (a: tree) : eprog res =
   | _ ->
     Error (Printf.sprintf "make_fundef_of_ast: Expected a Tlistglobdef, got %s."
              (string_of_ast a))
+
+let pass_elang ast =
+  match make_eprog_of_ast ast with
+  | Error msg ->
+    record_compile_result ~error:(Some msg) "Elang";
+    Error msg
+  | OK  ep ->
+    dump !e_dump dump_e ep (fun file () ->
+        add_to_report "e" "E" (Code (file_contents file))); OK ep
+

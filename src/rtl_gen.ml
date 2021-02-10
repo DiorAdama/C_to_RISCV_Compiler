@@ -4,6 +4,9 @@ open Cfg
 open Rtl
 open Prog
 open Utils
+open Report
+open Rtl_print
+open Options
 
 (* Une partie de la génération de RTL consiste à allouer les variables dans des
    pseudo-registres RTL.
@@ -89,3 +92,9 @@ let rtl_of_gdef funname = function
     Gfun f -> Gfun (rtl_instrs_of_cfg_fun funname f)
 
 let rtl_of_cfg cp = List.map (fun (s, gd) -> (s, rtl_of_gdef s gd)) cp
+
+let pass_rtl_gen cfg =
+  let rtl = rtl_of_cfg cfg in
+  dump !rtl_dump dump_rtl_prog rtl
+    (fun file () -> add_to_report "rtl" "RTL" (Code (file_contents file)));
+  OK rtl

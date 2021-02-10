@@ -3,7 +3,10 @@ open Rtl
 open Linear
 open Prog
 open Utils
-
+open Report
+open Linear_print
+open Options
+open Linear_liveness
 
 let succs_of_rtl_instr (i: rtl_instr) =
   match i with
@@ -55,3 +58,10 @@ let linear_of_rtl_gdef = function
 
 let linear_of_rtl r =
   assoc_map linear_of_rtl_gdef r
+
+let pass_linearize rtl =
+  let linear = linear_of_rtl rtl in
+  let lives = liveness_linear_prog linear in
+  dump !linear_dump (fun oc -> dump_linear_prog oc (Some lives)) linear
+    (fun file () -> add_to_report "linear" "Linear" (Code (file_contents file)));
+  OK (linear, lives)

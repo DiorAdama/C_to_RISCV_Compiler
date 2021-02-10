@@ -3,6 +3,9 @@ open Batteries
 open Prog
 open Utils
 open Cfg
+open Report
+open Cfg_print
+open Options
 
 (* Élimination des NOPs. *)
 
@@ -77,3 +80,11 @@ let nop_elim_gdef gd =
 
 let nop_elimination cp =
   assoc_map nop_elim_gdef cp
+
+
+let pass_nop_elimination cfg =
+  let cfg = nop_elimination cfg in
+  record_compile_result "NopElim";
+  dump (!cfg_dump >*> fun s -> s ^ "3") dump_cfg_prog cfg
+    (call_dot "cfg-after-nop" "CFG after NOP elim");
+  OK cfg

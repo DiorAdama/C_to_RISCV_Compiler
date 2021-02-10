@@ -113,7 +113,7 @@ let read_mem_bytes_as_int mem addr n =
 
 
 let read_mem_int mem addr =
-  read_mem_bytes_as_int mem addr !Archi.wordsize
+  read_mem_bytes_as_int mem addr (Archi.wordsize ())
 
 let read_mem_char mem addr =
   read_mem_bytes mem addr 1 >>= fun bl ->
@@ -318,3 +318,33 @@ let dump file (dumpf : _ -> 'a -> unit) (p: 'a) (additional_command: string -> u
       dumpf oc p; close ();
       if file <> "-" then additional_command file ()
   end
+
+
+let process_output_to_list2 = fun command ->
+  let chan = Unix.open_process_in command in
+  let res = ref ([] : string list) in
+  let rec process_otl_aux () =
+    let e = input_line chan in
+    res := e::!res;
+    process_otl_aux() in
+  try process_otl_aux ()
+  with End_of_file ->
+    let stat = Unix.close_process_in chan in (List.rev !res,stat)
+
+let cmd_to_list command =
+  let (l,_) = process_output_to_list2 command in l
+
+let file_contents file =
+  match
+    let ic = open_in file in
+    let rec aux s () =
+      try
+        let line = input_line ic in  (* read line from in_channel and discard \n *)
+        aux (s ^ line ^ "\n") ()   (* close the input channel *)
+      with e ->                      (* some unexpected exception occurs *)
+        close_in_noerr ic;           (* emergency closing *)
+        s in
+    aux "" ()
+  with
+  | exception Sys_error _ -> failwith (Printf.sprintf "Could not open file %s\n" file)
+  | x -> x

@@ -21,7 +21,6 @@ parser.add_argument("-p", "--passes",
                     nargs='+',
                     default=["e-run",
                              "cfg-run",
-                             "cfg-run-after-loop",
                              "cfg-run-after-cp",
                              "cfg-run-after-dae",
                              "cfg-run-after-ne",
@@ -144,13 +143,18 @@ class CommandExecutor(Thread):
         self.stderr = process['stderr'].decode('utf8')
         json_file_name = self.f + ".json"
         j = []
-        with open(json_file_name, 'r') as jsonfile:
-            try:
-                j = json.load(jsonfile)
-            except:
-                j.append({'retval':-1,
-                          'output': display_verbatim(self.stdout),
-                          'error': display_verbatim(self.stderr)})
+        try:
+            with open(json_file_name, 'r') as jsonfile:
+                try:
+                    j = json.load(jsonfile)
+                except:
+                    j.append({'retval':-1,
+                              'output': display_verbatim(self.stdout),
+                              'error': display_verbatim(self.stderr)})
+        except:
+            j.append({'retval':-1,
+                      'output': display_verbatim(self.stdout),
+                      'error': "No file {} generated...".format(json_file_name)})
         old_ret = None
         old_out = None
         old_err = None
@@ -185,7 +189,7 @@ class CommandExecutor(Thread):
                     self.lastcorrectstep = curcol
                 self.s += make_td(["Ret = {}.<br>Output = <pre>'{}'</pre>{}<br>Time: {:.2f} seconds.<br>".
                                    format(r['retval'], r['output'],
-                                          "Error: "+r['error'] if r['error'] != None else "",
+                                          "Error: <pre>"+r['error']+"</pre>" if r['error'] != None else "",
                                           r['time']),
                                    "class=\"{}\"".format(cls)])
                 curcol+=1

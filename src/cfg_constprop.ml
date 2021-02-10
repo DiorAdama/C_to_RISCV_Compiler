@@ -3,6 +3,9 @@ open Cfg
 open Elang_run
 open Prog
 open Utils
+open Report
+open Cfg_print
+open Options
 
 (* [simple_eval_eexpr e] evaluates an expression [e] with no variables. Raises
    an exception if the expression contains variables. *)
@@ -46,3 +49,10 @@ let constant_propagation_gdef = function
 
 let constant_propagation p =
   assoc_map constant_propagation_gdef p
+
+let pass_constant_propagation p =
+  let cfg = constant_propagation p in
+  record_compile_result "Constprop";
+  dump (!cfg_dump >*> fun s -> s ^ "1") dump_cfg_prog cfg
+    (call_dot "cfg-after-cstprop" "CFG after Constant Propagation");
+  OK cfg

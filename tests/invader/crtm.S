@@ -1,7 +1,7 @@
 # See LICENSE for license details.
 
-.include "macros.s"
-.include "constants.s"
+.include "macros.S"
+.include "constants.S"
 
 #
 # start of trap handler

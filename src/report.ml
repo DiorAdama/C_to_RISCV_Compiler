@@ -1,3 +1,5 @@
+open Options
+open Utils
 
 type html_node =
   | Img of string
@@ -45,3 +47,88 @@ let call_dot report_sectid report_secttitle file () : unit =
     add_to_report report_sectid report_secttitle (Img (Filename.basename file^".svg"));
     ignore r
   end
+
+(*  *)
+
+
+type run_result = {
+  step: string;
+  retval: int option;
+  output: string;
+  error: string option;
+  time: float;
+}
+
+type compile_result = {
+  step: string;
+  error: string option;
+  data: Yojson.t
+}
+
+type result = RunRes of run_result
+            | CompRes of compile_result
+
+
+let results : result list ref = ref []
+
+
+let record_compile_result ?error:(error=None) ?data:(data=[]) step =
+  let data = if not !Options.nostats then `List data else `Null in
+  results := !results @ [CompRes { step; error; data}]
+
+
+let run step flag eval p =
+  if flag then begin
+    let starttime = Unix.gettimeofday () in
+    let res = match eval Format.str_formatter p !heapsize !params with
+      | exception e ->
+        Error (Printexc.to_string e)
+      | e -> e in
+    let timerun = Unix.gettimeofday () -. starttime in
+    let output = Format.flush_str_formatter () in
+    let rres = { step ; retval = None; output; error = None; time = timerun} in
+    let rres =
+    begin match res with
+      | OK v ->  { rres with retval = v }
+      | Error msg -> { rres with error = Some msg }
+    end in
+    results := !results @ [RunRes rres];
+    add_to_report step ("Run " ^ step) (
+      Paragraph
+        (
+          Printf.sprintf "With parameters : [%s]<br>\n" (String.concat"," (List.map string_of_int !params))
+          ^ Printf.sprintf "Mem size : %d bytes<br>\n" !heapsize
+          ^ Printf.sprintf "Return value : %s<br>\n" (match rres.retval with | Some v -> string_of_int v | _ -> "none")
+          ^ Printf.sprintf "Output : <pre style=\"padding: 1em; background-color: #ccc;\">%s</pre>\n" output
+          ^
+          (match rres.error with
+           | Some msg -> Printf.sprintf "Error : <pre style=\"padding: 1em; background-color: #fcc;\">\n%s</pre>\n" msg
+           | _ -> "")
+          ^ Printf.sprintf "Time : %f seconds<br>\n" timerun
+        )
+    )
+  end
+
+
+let json_output_string () =
+  let open Yojson in
+  let jstring_of_ostring o =
+    match o with
+    | None -> `Null
+    | Some s -> `String s
+  in
+  let j = `List (List.map (function
+      | RunRes { step; retval; output; error; time } ->
+        `Assoc [("runstep",`String step);
+                ("retval", match retval with Some r -> `Int r | None -> `Null);
+                ("output", `String output);
+                ("error", jstring_of_ostring error);
+                ("time", `Float time)
+               ]
+      | CompRes { step; error; data } ->
+        `Assoc [("compstep",`String step);
+                ("error", jstring_of_ostring error);
+                ("data", data)
+               ]
+    ) !results) in
+  (Yojson.pretty_to_string j)

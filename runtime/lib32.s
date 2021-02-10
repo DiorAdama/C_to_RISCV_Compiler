@@ -1,3 +1,4 @@
+	.include "syscall_numbers.s"
 	  .global atoi
 	  .global print_int
 	  .global println
@@ -66,7 +67,7 @@ li a3, 0
 li a4, 0
 li a5, 0
 li a6, 0
-li a7, 64
+li a7, SYSCALL_WRITE
 ecall
 jr ra
 print_char:

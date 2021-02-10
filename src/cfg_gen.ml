@@ -3,6 +3,9 @@ open Elang
 open Cfg
 open Utils
 open Prog
+open Report
+open Cfg_print
+open Options
 
 (* [cfg_expr_of_eexpr e] converts an [Elang.expr] into a [expr res]. This should
    always succeed and be straightforward.
@@ -104,3 +107,12 @@ let cfg_gdef_of_edef gd =
 
 let cfg_prog_of_eprog (ep: eprog) : cfg_fun prog res =
   assoc_map_res (fun fname -> cfg_gdef_of_edef) ep
+
+let pass_cfg_gen ep =
+  match cfg_prog_of_eprog ep with
+  | Error msg ->
+    record_compile_result ~error:(Some msg) "CFG"; Error msg
+  | OK cfg ->
+    record_compile_result "CFG";
+    dump !cfg_dump dump_cfg_prog cfg (call_dot "cfg" "CFG");
+    OK cfg

@@ -678,10 +678,10 @@ function handle_command(d){
 
             for(let [evar,loc] of Object.entries(fb['vars'])){
                 if(Object.keys(loc).includes("reg")){
-                    p.insert("span").html("Var "+evar+": "+loc["reg"])
+                    p.insert("span").html("Var "+evar+": Reg "+loc["reg"])
                         .insert("br");
                 } else {
-                    p.insert("span").html("Var "+evar+": "+loc["stk"])
+                    p.insert("span").html("Var "+evar+": Stk "+loc["stk"])
                         .insert("br");
                 }
             }

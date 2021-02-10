@@ -35,12 +35,7 @@ open Archi
 open Report
 open Options
 open Lexer_generator
-
-open Cfg_loops
-
-let tokenize file =
-  Lexer_generator.tokenize_file file >>= fun tokens ->
-  OK (List.map (fun tok -> (tok, None)) tokens)
+open Tokenize
 
 let speclist =
   [
@@ -51,7 +46,6 @@ let speclist =
     ("-e-run", Arg.Set e_run, "Run Elang program.");
     ("-cfg-dump", Arg.String (fun s -> cfg_dump := Some s), "Output CFG file.");
     ("-cfg-run", Arg.Set cfg_run, "Run CFG program.");
-    ("-cfg-run-after-loop", Arg.Set cfg_run_after_loop, "Run CFG program after loop optimization.");
     ("-cfg-run-after-cp", Arg.Set cfg_run_after_cp, "Run CFG program after constant propagation.");
     ("-cfg-run-after-dae", Arg.Set cfg_run_after_dae, "Run CFG program after dead assign elimination.");
     ("-cfg-run-after-ne", Arg.Set cfg_run_after_ne, "Run CFG program after nop elimination.");
@@ -70,12 +64,15 @@ let speclist =
     ("-clever-regalloc", Arg.Unit (fun () -> naive_regalloc := false), "Use the graph coloring algorithm for register allocation.");
     ("-naive-regalloc", Arg.Unit (fun () -> naive_regalloc := true),
      "Use the naive algorithm for register allocation (all pseudo-registers go on the stack).");
+    ("-no-cfg-constprop", Arg.Set no_cfg_constprop, "Disable CFG constprop");
+    ("-no-cfg-dae", Arg.Set no_cfg_dae, "Disable CFG Dead Assign Elimination");
+    ("-no-cfg-ne", Arg.Set no_cfg_ne, "Disable CFG Nop Elimination");
+    ("-no-linear-dse", Arg.Set no_linear_dse, "Disable Linear Dead Store Elimination");
     ("-rig-dump", Arg.String (fun s -> rig_dump := Some s),
     "Path to output the register interference graph");
     ("-all-run", Arg.Unit (fun () ->
          e_run := true;
          cfg_run := true;
-         cfg_run_after_loop := true;
          cfg_run_after_cp := true;
          cfg_run_after_dae := true;
          cfg_run_after_ne := true;
@@ -94,105 +91,10 @@ let speclist =
     ("-nostart", Arg.Set nostart, "Don't output _start code.");
     ("-nostats", Arg.Set nostats, "Don't output stats.");
     ("-nomul", Arg.Unit (fun _ -> has_mul := false), "Target architecture without mul instruction.");
+    ("-linux", Arg.Unit (fun _ -> target := Linux), "emit linux syscalls");
+    ("-xv6", Arg.Unit (fun _ -> target := Xv6), "emit xv6 syscalls");
     ("--", Arg.Rest (fun p -> params := int_of_string p::!params), "Run parameters.")
   ]
-
-
-
-type run_result = {
-  step: string;
-  retval: int option;
-  output: string;
-  error: string option;
-  time: float;
-}
-
-type compile_result = {
-  step: string;
-  error: string option;
-  data: Yojson.t
-}
-
-type result = RunRes of run_result
-            | CompRes of compile_result
-
-
-let results = ref []
-
-let run step flag eval p =
-  if flag then begin
-    let starttime = Unix.gettimeofday () in
-    let res = match eval Format.str_formatter p !heapsize !params with
-      | exception e ->
-        Error (Printexc.to_string e)
-      | e -> e in
-    let timerun = Unix.gettimeofday () -. starttime in
-    begin match res with
-      | OK v ->
-        let output = Format.flush_str_formatter () in
-        results := !results @ [RunRes { step ; retval = v; output; error = None; time = timerun}];
-        add_to_report step ("Run " ^ step) (
-          Paragraph 
-            (
-              Printf.sprintf "With parameters : [%s]<br>\n" (String.concat"," (List.map string_of_int !params))
-              ^ Printf.sprintf "Mem size : %d bytes<br>\n" !heapsize
-              ^ Printf.sprintf "Return value : %s<br>\n" (match v with | Some v -> string_of_int v | _ -> "none")
-              ^ Printf.sprintf "Output : <pre style=\"padding: 1em; background-color: #ccc;\">%s</pre>\n" output
-              ^ Printf.sprintf "Time : %f seconds<br>\n" timerun
-            )
-        )
-      | Error msg ->
-        let output  = Format.flush_str_formatter () in
-        results := !results @ [RunRes { step ; retval = None; output; error = Some msg; time = timerun}];
-        add_to_report step ("Run " ^ step) (
-          Paragraph 
-            (
-              Printf.sprintf "With parameters : [%s]<br>\n" (String.concat"," (List.map string_of_int !params))
-              ^ Printf.sprintf "Mem size : %d bytes<br>\n" !heapsize
-              ^ Printf.sprintf "Return value : none<br>\n"
-              ^ Printf.sprintf "Output : <pre style=\"padding: 1em; background-color: #ccc;\">%s</pre>\n" output
-              ^ Printf.sprintf "Error : <pre style=\"padding: 1em; background-color: #fcc;\">\n%s</pre>\n" msg
-              ^ Printf.sprintf "Time : %f seconds<br>\n" timerun
-            )
-        )
-
-    end
-  end
-
-let record_compile_result ?error:(error=None) ?data:(data=[]) step =
-  let data = if not !Options.nostats then `List data else `Null in
-  results := !results @ [CompRes { step; error; data}]
-
-
-
-let process_output_to_list2 = fun command ->
-  let chan = Unix.open_process_in command in
-  let res = ref ([] : string list) in
-  let rec process_otl_aux () =
-    let e = input_line chan in
-    res := e::!res;
-    process_otl_aux() in
-  try process_otl_aux ()
-  with End_of_file ->
-    let stat = Unix.close_process_in chan in (List.rev !res,stat)
-
-let cmd_to_list command =
-  let (l,_) = process_output_to_list2 command in l
-
-let file_contents file =
-  match
-    let ic = open_in file in
-    let rec aux s () =
-      try
-        let line = input_line ic in  (* read line from in_channel and discard \n *)
-        aux (s ^ line ^ "\n") ()   (* close the input channel *)
-      with e ->                      (* some unexpected exception occurs *)
-        close_in_noerr ic;           (* emergency closing *)
-        s in
-    aux "" ()
-  with
-  | exception Sys_error _ -> failwith (Printf.sprintf "Could not open file %s\n" file)
-  | x -> x
 
 let set_default r v suff =
   match !r with
@@ -201,13 +103,28 @@ let set_default r v suff =
 
 let compile_rv basename asmfile () =
   if not !Options.nostart then begin
-    let out, _ =
-      Format.sprintf
-        "%s -nostdlib -nostartfiles -T %s/link.ld -o \"%s.exe\" \"%s\" %s/lib%d.s %s/mul%d.S 2>&1"
-        !Archi.assembler Config.runtime_dir basename asmfile 
-        Config.runtime_dir !Archi.nbits
-        Config.runtime_dir !Archi.nbits
-      |> process_output_to_list2 in
+    let obj_file_prog = Filename.temp_file ~temp_dir:"/tmp" "" ".o" in
+    let cmdas_prog = Format.sprintf "%s -I%s -o %s %s"
+        (Archi.assembler ())
+        (Archi.runtime_lib_include_path ())
+        obj_file_prog asmfile in
+    let obj_file_lib = Filename.temp_file ~temp_dir:"/tmp" "" ".o" in
+    let cmdas_lib = Format.sprintf "%s -I%s -o %s %s"
+        (Archi.assembler ())
+        (Archi.runtime_lib_include_path ())
+        obj_file_lib (Archi.runtime_lib_path ()) in
+    let cmdld = Format.sprintf "%s -T %s/link.ld %s %s -o %s.exe"
+        (Archi.linker ())
+        Config.runtime_dir
+        obj_file_prog obj_file_lib
+        basename in
+    Printf.printf "AS: %s\n" cmdas_prog;
+    Printf.printf "AS: %s\n" cmdas_lib;
+    Printf.printf "LD: %s\n" cmdld;
+    let out_as_prog = cmd_to_list cmdas_prog in
+    let out_as_lib = cmd_to_list cmdas_lib in
+    let out_ld = cmd_to_list cmdld in
+    let out = out_as_prog @ out_as_lib @ out_ld in
     match out with
       [] -> None
     | _ -> Some (String.concat "\n" out)
@@ -223,17 +140,12 @@ let exec_rv_prog ltl basename oc rvp heapsize params =
       f
   in
   let error = ref None in
-  dump (Some rvp) (fun oc p ->
-      match dump_riscv_prog oc p with
-      | OK _ -> ()
-      | Error msg -> error := Some msg
-    ) ltl (fun file () ->
-      if !error = None
-      then error := compile_rv basename file ());
+  dump (Some rvp) (dump_riscv_prog !Archi.target) ltl (fun file () ->
+      error := compile_rv basename file ());
   match !error with
   | Some e -> Error ("RiscV generation error:\n" ^e)
   | None ->
-    let l = cmd_to_list (Format.sprintf "%s%d-static \"%s.exe\" %s" Config.qemu_path !Archi.nbits basename
+    let l = cmd_to_list (Format.sprintf "%s \"%s.exe\" %s" (Archi.qemu ())  basename
                            (params |> List.map string_of_int |> String.concat " " )) in
     try
       let all_but_last = l |> List.rev |> List.tl |> List.rev in
@@ -245,7 +157,7 @@ let exec_rv_prog ltl basename oc rvp heapsize params =
 
 let _ =
   Arg.parse speclist (fun s -> ()) "Usage";
-  init_archi !archi ();
+  Archi.archi := !archi;
   match !input_file with
   | None -> failwith "No input file specified.\n"
   | Some input ->
@@ -255,142 +167,54 @@ let _ =
       None -> failwith
                 (Format.sprintf "File (%s) should end in .e" input)
     | Some basename ->
-      begin
-        params := List.rev !params;
-        set_default riscv_dump basename ".s";
-        if not !no_dump then begin
-          set_default show_tokens basename ".lex";
-          set_default ast_tree basename ".ast";
-          set_default e_dump basename ".e.dump";
-          set_default cfg_dump basename ".cfg";
-          set_default rtl_dump basename ".rtl";
-          set_default linear_dump basename ".linear";
-          set_default rig_dump basename ".rig";
-          set_default ltl_dump basename ".ltl";
-        end;
-
-        tokenize input >>* (fun msg ->
-            record_compile_result ~error:(Some msg) "Lexing";
-          ) $ fun tokens ->
-            record_compile_result "Lexing";
-            dump !show_tokens (fun oc tokens ->
-                List.iter (fun (tok,_) ->
-                    Format.fprintf oc "%s\n" (string_of_symbol tok)
-                  ) tokens) tokens (fun f () -> add_to_report "lexer" "Lexer" (Code (file_contents f)));
-            parse tokens () >>* (fun msg ->
-                record_compile_result ~error:(Some msg) "Parsing";
-              ) $ fun (ast, tokens) ->
-                record_compile_result "Parsing";
-                dump !ast_tree draw_ast_tree ast (call_dot "ast" "AST");
-                if !ast_dump then Format.printf "%s\n" (string_of_ast ast) else ();
-
-                match make_eprog_of_ast ast with
-                | Error msg -> record_compile_result ~error:(Some msg) "Elang"
-                | OK  ep ->
-                  dump !e_dump dump_e ep (fun file () ->
-                      add_to_report "e" "E" (Code (file_contents file)));
-                  run "Elang" !e_run eval_eprog ep;
-
-                  match cfg_prog_of_eprog ep with
-                  | Error msg ->
-                    record_compile_result ~error:(Some msg) "CFG";
-                  | OK cfg ->
-                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG";
-
-                    dump !cfg_dump dump_cfg_prog cfg (call_dot "cfg" "CFG");
-                    run "CFG" !cfg_run eval_cfgprog cfg;
-
-                    let cfg = optimize_loop_cfg cfg in
-                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "CFG loops";
-                    dump (!cfg_dump >*> fun s -> s ^ "0") dump_cfg_prog cfg
-                      (call_dot "cfg-after-loop" "CFG after loop optim");
-                    run "CFG after loop optim" !cfg_run_after_loop eval_cfgprog cfg;
-
-
-                    let cfg = constant_propagation cfg in
-                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "Constprop";
-                    dump (!cfg_dump >*> fun s -> s ^ "1") dump_cfg_prog cfg
-                      (call_dot "cfg-after-cstprop" "CFG after Constant Propagation");
-                    run "CFG after constant_propagation" !cfg_run_after_cp eval_cfgprog cfg;
-
-                    let cfg = dead_assign_elimination cfg in
-                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "DeadAssign";
-                    dump (!cfg_dump >*> fun s -> s ^ "2") dump_cfg_prog cfg
-                      (call_dot "cfg-after-dae" "CFG after DAE");
-                    run "CFG after dead_assign_elimination" !cfg_run_after_dae eval_cfgprog cfg;
-
-                    let cfg = nop_elimination cfg in
-                    record_compile_result ~data:([(`Assoc (List.map (fun (fname,Prog.Gfun cfgfun) -> (fname, `Int (Cfg.size_fun cfgfun.cfgfunbody))) cfg))]) "NopElim";
-                    dump (!cfg_dump >*> fun s -> s ^ "3") dump_cfg_prog cfg
-                      (call_dot "cfg-after-nop" "CFG after NOP elim");
-                    run "CFG after nop_elimination" !cfg_run_after_ne eval_cfgprog cfg;
-
-
-                    let rtl = rtl_of_cfg cfg in
-                    dump !rtl_dump dump_rtl_prog rtl
-                      (fun file () -> add_to_report "rtl" "RTL" (Code (file_contents file)));
-                    run "RTL" !rtl_run exec_rtl_prog rtl;
-
-                    let linear = linear_of_rtl rtl in
-                    let lives = liveness_linear_prog linear in
-                    dump !linear_dump (fun oc -> dump_linear_prog oc (Some lives)) linear
-                      (fun file () -> add_to_report "linear" "Linear" (Code (file_contents file)));
-                    run "Linear" !linear_run exec_linear_prog linear;
-
-                    let linear = dse_prog linear lives in
-                    record_compile_result "DSE";
-                    dump (!linear_dump >*> fun s -> s ^ "1")
-                      (fun oc -> dump_linear_prog oc (Some lives)) linear
-                      (fun file () -> add_to_report "linear-after-dse" "Linear after DSE"
-                          (Code (file_contents file)));
-                    run "Linear after DSE" !linear_run_after_dse exec_linear_prog linear;
-
-                    match ltl_prog_of_linear linear with
-                    | Error msg -> record_compile_result ~error:(Some msg) "LTL"
-                    | OK ltl ->
-                      dump !ltl_dump dump_ltl_prog ltl
-                        (fun file () -> add_to_report "ltl" "LTL" (Code (file_contents file)));
-                      run "LTL" !ltl_run (exec_ltl_prog) ltl;
-                      (if !ltl_debug then debug_ltl_prog input ltl !heapsize !params);
-
-                      dump !riscv_dump (fun oc p ->
-                          match dump_riscv_prog oc p with
-                          | OK _ -> ()
-                          | Error msg -> record_compile_result ~error:(Some msg) "RISCV"
-                        ) ltl (fun file () ->
-                          add_to_report "riscv" "RISC-V" (Code (file_contents file));
-                          ignore (compile_rv basename file ()));
-                      if not !Options.nostart then begin
-                        run "Risc-V" !riscv_run (exec_rv_prog ltl basename) !riscv_dump
-                      end;
-
+      params := List.rev !params;
+      set_default riscv_dump basename ".s";
+      if not !no_dump then begin
+        set_default show_tokens basename ".lex";
+        set_default ast_tree basename ".ast";
+        set_default e_dump basename ".e.dump";
+        set_default cfg_dump basename ".cfg";
+        set_default rtl_dump basename ".rtl";
+        set_default linear_dump basename ".linear";
+        set_default rig_dump basename ".rig";
+        set_default ltl_dump basename ".ltl";
       end;
 
-      let json_output_string = 
-        let open Yojson in
-        let jstring_of_ostring o =
-          match o with
-          | None -> `Null
-          | Some s -> `String s
-        in
-        let j = `List (List.map (function
-            | RunRes { step; retval; output; error; time } ->
-              `Assoc [("runstep",`String step);
-                      ("retval", match retval with Some r -> `Int r | None -> `Null);
-                      ("output", `String output);
-                      ("error", jstring_of_ostring error);
-                      ("time", `Float time)
-                     ]
-            | CompRes { step; error; data } ->
-              `Assoc [("compstep",`String step);
-                      ("error", jstring_of_ostring error);
-                      ("data", data)
-                     ]
-          ) !results) in
-        (Yojson.pretty_to_string j) in
-
-
+      let compiler_res =
+        pass_tokenize input >>= fun tokens ->
+        pass_parse tokens >>= fun (ast, _) ->
+        pass_elang ast >>= fun ep ->
+        run "Elang" !e_run eval_eprog ep;
+        pass_cfg_gen ep >>= fun cfg ->
+        run "CFG" !cfg_run eval_cfgprog cfg;
+        pass_constant_propagation cfg >>= fun cfg ->
+        run "CFG after constant_propagation" !cfg_run_after_cp eval_cfgprog cfg;
+        pass_dead_assign_elimination cfg >>= fun cfg ->
+        run "CFG after dead_assign_elimination" !cfg_run_after_dae eval_cfgprog cfg;
+        pass_nop_elimination cfg >>= fun cfg ->
+        run "CFG after nop_elimination" !cfg_run_after_ne eval_cfgprog cfg;
+        pass_rtl_gen cfg >>= fun rtl ->
+        run "RTL" !rtl_run exec_rtl_prog rtl;
+        pass_linearize rtl >>= fun (linear, lives) ->
+        run "Linear" !linear_run exec_linear_prog linear;
+        pass_linear_dse linear lives >>= fun linear ->
+        run "Linear after DSE" !linear_run_after_dse exec_linear_prog linear;
+        pass_ltl_gen linear
+      in
+      begin
+        match compiler_res with
+        | Error msg -> ()
+        | OK ltl ->
+          run "LTL" !ltl_run (exec_ltl_prog) ltl;
+          (if !ltl_debug then debug_ltl_prog input ltl !heapsize !params);
+          dump !riscv_dump (dump_riscv_prog !Archi.target) ltl (fun file () ->
+              add_to_report "riscv" "RISC-V" (Code (file_contents file));
+              ignore (compile_rv basename file ()));
+          if not !Options.nostart then begin
+            run "Risc-V" !riscv_run (exec_rv_prog ltl basename) !riscv_dump
+          end
+      end;
       dump (Some !output_json) (fun oc p ->
           Format.fprintf oc "%s\n" p
-        ) json_output_string (fun _ () -> ());
+        ) (json_output_string ()) (fun _ () -> ());
       make_report input report ()
