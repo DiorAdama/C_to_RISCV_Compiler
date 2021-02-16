@@ -55,6 +55,7 @@ type token =
  | SYM_PRINT
  | SYM_EXTERN
  | SYM_INCLUDE of string
+ | SYM_AMPERSAND
 
 let string_of_symbol = function
 | SYM_EOF -> "SYM_EOF"
@@ -103,3 +104,4 @@ let string_of_symbol = function
 | SYM_PRINT -> "SYM_PRINT"
 | SYM_EXTERN -> "SYM_EXTERN"
 | SYM_INCLUDE(s) -> Printf.sprintf "SYM_INCLUDE(%s)" s
+| SYM_AMPERSAND -> "SYM_AMPERSAND"

@@ -1,5 +1,5 @@
+open Batteries
 open Utils
-
 
 type mem_access_size =
   | MAS1
@@ -61,7 +61,7 @@ let set_val env v i =
   Hashtbl.replace env v i
 
 let get_val env v =
-  Hashtbl.find_opt env v
+  Hashtbl.find_option env v
 
 let find_function (ep: 'a prog) fname : 'a res =
   match List.assoc_opt fname ep with

@@ -278,6 +278,7 @@ let caller_save live_out allocation rargs =
    registers are saved at [fp - 8 * (curstackslot + 1)] *)
 let ltl_instrs_of_linear_instr fname live_out allocation
     numspilled epilogue_label ins =
+  let res =
   match ins with
   | Rbinop (b, rd, rs1, rs2) ->
     load_loc reg_tmp1 allocation rs1 >>= fun (l1, r1) ->
@@ -322,6 +323,9 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     load_loc reg_tmp1 allocation r >>= fun (l,r) ->
     OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
   | Rlabel l -> OK [LLabel (Format.sprintf "%s_%d" fname l)]
+  in
+  res >>= fun l ->
+  OK (LComment (Format.asprintf "#<span style=\"background: pink;\"><b>Linear instr</b>: %a #</span>" (Rtl_print.dump_rtl_instr fname (None, None)) ins)::l)
 
 (** Retrieves the location of the n-th argument (in the callee). The first 8 are
    passed in a0-a7, the next are passed on the stack. *)

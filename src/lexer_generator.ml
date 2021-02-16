@@ -64,7 +64,7 @@ let star_nfa n t =
    que l'expression régulière [r].
    [freshstate] correspond à un entier pour lequel il n'y a pas encore d'état dans 
    le nfa. Il suffit d'incrémenter [freshstate] pour obtenir de nouveaux états non utilisés.
-   [t] est une fonction du type [string -> token option] utile pour les état finaux.
+   [t] est une fonction du type [string -> token option] utile pour les états finaux.
 *)
 let rec nfa_of_regexp r freshstate t =
   match r with

@@ -34,7 +34,9 @@ let dead_assign_elimination_gdef = function
     Gfun f -> Gfun (iter_dead_assign_elimination_fun f)
 
 let dead_assign_elimination p =
-  assoc_map dead_assign_elimination_gdef p
+  if !Options.no_cfg_dae
+  then p
+  else assoc_map dead_assign_elimination_gdef p
 
 let pass_dead_assign_elimination cfg =
   let cfg = dead_assign_elimination cfg in

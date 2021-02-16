@@ -74,8 +74,6 @@ let write_mem_bytes mem addr bl =
       with _ -> Error (Format.sprintf "Problem when writing mem at address %d\n" ofs)
     ) (OK [])
 
-(* let write_mem_int mem addr v =
- *   split_bytes !Archi.wordsize v |> rev |> write_mem_bytes mem addr *)
 
 let write_mem_char mem addr c = write_mem_bytes mem addr [c]
 

@@ -24,3 +24,19 @@ type rtl_fun = { rtlfunargs: reg list;
                  rtlfunentry: int;
                  rtlfuninfo: (string*reg) list
                }
+
+let written_rtl_regs_instr (i: rtl_instr) =
+  match i with
+  | Rbinop (_, rd, _, _)
+  | Runop (_, rd, _)
+  | Rconst (rd, _)
+  | Rmov (rd, _) -> Set.singleton rd
+  | Rprint _
+  | Rret _
+  | Rlabel _
+  | Rbranch (_, _, _, _)
+  | Rjmp _ -> Set.empty
+
+let written_rtl_regs (l: rtl_instr list) =
+  List.fold_left (fun acc i -> Set.union acc (written_rtl_regs_instr i))
+    Set.empty l

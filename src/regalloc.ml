@@ -99,13 +99,24 @@ let make_interf_live
 
    Offert par la maison !
 *)
-let build_interference_graph (live_out : (int, reg Set.t) Hashtbl.t) : (reg, reg Set.t) Hashtbl.t  =
+let build_interference_graph (live_out : (int, reg Set.t) Hashtbl.t) code : (reg, reg Set.t) Hashtbl.t  =
   let interf = Hashtbl.create 17 in
   (* On ajoute un sommet pour chaque variable qui apparaît dans le programme. *)
   Hashtbl.iter (fun _ s ->
       Set.iter (fun v -> Hashtbl.replace interf v Set.empty) s
     ) live_out;
   make_interf_live interf live_out;
+(* Les registres dans lesquels on écrit mais qui ne sont jamais vivants doivent être considérés comme en interférence avec tous les autres. *)
+  let written_regs = written_rtl_regs code in
+  let written_regs_never_live =
+    Hashtbl.fold (fun _ regset_live_together acc -> Set.diff acc regset_live_together) live_out
+      written_regs in
+  let other_regs = Hashtbl.keys interf |> Set.of_enum in
+  Set.iter (fun r ->
+      Set.iter (fun r_other ->
+          add_interf interf r r_other
+        ) other_regs
+    ) written_regs_never_live;
   interf
 
 (* [remove_from_rig rig v] supprime le sommet [v] du graphe d'interférences
@@ -236,7 +247,8 @@ let regalloc_fun (f: linear_fun)
   * (reg, loc) Hashtbl.t          (* the allocation *)
   * int                         (* the next stack slot *)
   =
-  let rig = build_interference_graph live_out in
+  let rig = build_interference_graph live_out f.linearfunbody in
+
   let allocation = Hashtbl.create 17 in
   (* Les pseudo-registres qui contiennent les arguments sont traités séparément
      dans [ltl_gen.ml]. On les enlève donc du graphe. *)

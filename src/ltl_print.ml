@@ -93,7 +93,7 @@ let dump_ltl_instr oc (i: ltl_instr) =
   | LJmp l -> Format.fprintf oc "j %s" l
   | LJmpr r -> Format.fprintf oc "jmpr %s" (print_reg r)
   | LConst (rd, i) -> Format.fprintf oc "%s <- %d" (print_reg rd) i
-  | LComment l -> Format.fprintf oc "; %s" l
+  | LComment l -> Format.fprintf oc "<span style=\"color: gray;\">; %s</span>" l
   | LBranch(cmp, rs1, rs2, s) ->
     Format.fprintf oc "%s(%s,%s) ? j %s"
       (print_cmpop cmp) (print_reg rs1) (print_reg rs2) s

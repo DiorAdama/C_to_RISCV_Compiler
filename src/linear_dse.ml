@@ -7,6 +7,7 @@ open Prog
 open Utils
 open Report
 open Linear_print
+open Report
 open Options
 
 let dse_instr (ins: rtl_instr) live =
@@ -22,6 +23,9 @@ let dse_fun live {linearfunargs; linearfunbody; linearfuninfo; } =
 
 
 let dse_prog p live =
+  if !Options.no_linear_dse
+  then p
+  else
   List.map (fun (fname,gdef) ->
       match gdef with
         Gfun f ->

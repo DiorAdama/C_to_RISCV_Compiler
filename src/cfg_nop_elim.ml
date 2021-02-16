@@ -79,8 +79,9 @@ let nop_elim_gdef gd =
     Gfun f -> Gfun (nop_elim_fun f)
 
 let nop_elimination cp =
-  assoc_map nop_elim_gdef cp
-
+  if !Options.no_cfg_ne
+  then cp
+  else assoc_map nop_elim_gdef cp
 
 let pass_nop_elimination cfg =
   let cfg = nop_elimination cfg in

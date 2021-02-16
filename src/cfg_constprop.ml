@@ -48,7 +48,9 @@ let constant_propagation_gdef = function
     Gfun (constant_propagation_fun f)
 
 let constant_propagation p =
-  assoc_map constant_propagation_gdef p
+  if !Options.no_cfg_constprop
+  then p
+  else assoc_map constant_propagation_gdef p
 
 let pass_constant_propagation p =
   let cfg = constant_propagation p in
