@@ -8,7 +8,6 @@ import signal
 import sys
 import time
 import textwrap
-import numpy as np
 import difflib
 
 parser = argparse.ArgumentParser()
