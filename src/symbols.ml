@@ -105,3 +105,4 @@ let string_of_symbol = function
 | SYM_EXTERN -> "SYM_EXTERN"
 | SYM_INCLUDE(s) -> Printf.sprintf "SYM_INCLUDE(%s)" s
 | SYM_AMPERSAND -> "SYM_AMPERSAND"
+
