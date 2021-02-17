@@ -52,7 +52,7 @@ let cat_nfa n1 n2 =
      nfa_step = (
      let n1_final = List.map (fun (a,b) -> a) n1.nfa_final in
       function 
-        | q when List.mem q n1_final -> (n1.nfa_step q) @ List.map (fun bi -> (None, bi)) n1_final
+        | q when List.mem q n1_final -> (n1.nfa_step q) @ List.map (fun bi -> (None, bi)) n2.nfa_initial
         | q when (List.mem q n1.nfa_states) -> n1.nfa_step q
         | q -> n2.nfa_step q
       );
@@ -77,16 +77,18 @@ let alt_nfa n1 n2 =
 (* Répétition de NFAs *)
 (* t est de type [string -> token option] *)
 let star_nfa n t =
-  let first_state = min (n.nfa_states) -1 in 
-    let end_state = max (n.nfa_states) +1 in 
+  let first_state = max (n.nfa_states) +1 in 
+    let end_state = first_state+1 in 
       {
         nfa_states = [first_state] @ n.nfa_states @ [end_state];
         nfa_initial = [end_state];
         nfa_final = [(end_state,t)];
         nfa_step = (
+          let n_final = List.map (fun (a, b) -> a) n.nfa_final in
           function 
             | q when (q = end_state) -> [(None, first_state)]
             | q when (q = first_state) -> List.map (fun x -> (None, x)) n.nfa_initial 
+            | q when List.mem q n_final -> [(None, end_state)]
             | q -> n.nfa_step q
         );
       }
@@ -109,8 +111,32 @@ let rec nfa_of_regexp r freshstate t =
                 nfa_final = [freshstate + 1, t];
                 nfa_step = fun q -> if q = freshstate then [(Some c, freshstate + 1)] else []
               }, freshstate + 2
-   (* TODO *)
-   | _ -> empty_nfa, freshstate
+  
+  | Cat (re1, re2) -> let nfa1, fs1 = nfa_of_regexp re1 freshstate t in
+                        let nfa2, fs2 = nfa_of_regexp re2 fs1 t in
+                          cat_nfa nfa1 nfa2, fs2
+  
+  | Alt (re1, re2) -> let nfa1, fs1 = nfa_of_regexp re1 freshstate t in
+                        let nfa2, fs2 = nfa_of_regexp re2 fs1 t in
+                          alt_nfa nfa1 nfa2, fs2
+                        
+  | Star re1 -> let nfa1, fs1 = nfa_of_regexp re1 freshstate t in
+                  star_nfa nfa1 t , fs1
+
+  
+(*
+  | re when re = keyword_regexp "while" -> 
+    let regex = "while" in 
+      {
+        nfa_states = List.of_enum(freshstate--(freshstate+5));
+        nfa_initial = [freshstate];
+        nfa_final = [(freshstate+5,t)];
+        nfa_step = function 
+          | q when (q >= freshstate && q < freshstate+5) -> 
+                [(Some (Set.singleton (String.get regex (q-freshstate))), freshstate+1)]
+          | q -> [] 
+      }, freshstate + 6
+*)
 
 (* Deterministic Finite Automaton (DFA) *)
 

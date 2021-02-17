@@ -99,7 +99,7 @@ let list_regexp : (regexp * (string -> token option)) list =
     (keyword_regexp ">=",       fun s -> Some (SYM_GEQ));
 
     (let id_beginner = char_range (char_list_of_string (uppercase_letters ^ lowercase_letters ^ "_")) in
-      Cat (id_beginner, Star identifier_material),       
+       Cat (id_beginner, Star identifier_material),       
     fun s -> Some (SYM_IDENTIFIER s));
 
     (* end TODO *)
