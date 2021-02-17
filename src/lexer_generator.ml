@@ -45,19 +45,51 @@ let empty_nfa =
 
 (* Concaténation de NFAs.  *)
 let cat_nfa n1 n2 =
-   (* TODO *)
-   empty_nfa
+   {
+     nfa_states = n1.nfa_states @ n2.nfa_states;
+     nfa_initial = n1.nfa_initial ;
+     nfa_final = n2.nfa_final;
+     nfa_step = (
+     let n1_final = List.map (fun (a,b) -> a) n1.nfa_final in
+      function 
+        | q when List.mem q n1_final -> (n1.nfa_step q) @ List.map (fun bi -> (None, bi)) n1_final
+        | q when (List.mem q n1.nfa_states) -> n1.nfa_step q
+        | q -> n2.nfa_step q
+      );
+   }
 
 (* Alternatives de NFAs *)
 let alt_nfa n1 n2 =
-   (* TODO *)
-   empty_nfa
+  let start_state = min (n1.nfa_states @ n2.nfa_states) -1 in 
+    {
+      nfa_states = [start_state] @ n1.nfa_states @ n2.nfa_states;
+      nfa_initial = [start_state];
+      nfa_final = n1.nfa_final @ n2.nfa_final;
+      nfa_step = (
+        function 
+          | q when (q=start_state) -> List.map (fun bi -> (None, bi)) (n1.nfa_initial@n2.nfa_initial)
+          | q -> (n1.nfa_step q)@(n2.nfa_step q)
+      );
+    }
+
+   
 
 (* Répétition de NFAs *)
 (* t est de type [string -> token option] *)
 let star_nfa n t =
-   (* TODO *)
-   empty_nfa
+  let first_state = min (n.nfa_states) -1 in 
+    let end_state = max (n.nfa_states) +1 in 
+      {
+        nfa_states = [first_state] @ n.nfa_states @ [end_state];
+        nfa_initial = [end_state];
+        nfa_final = [(end_state,t)];
+        nfa_step = (
+          function 
+            | q when (q = end_state) -> [(None, first_state)]
+            | q when (q = first_state) -> List.map (fun x -> (None, x)) n.nfa_initial 
+            | q -> n.nfa_step q
+        );
+      }
 
 
 (* [nfa_of_regexp r freshstate t] construit un NFA qui reconnaît le même langage
