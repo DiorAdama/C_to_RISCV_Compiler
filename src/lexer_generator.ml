@@ -124,19 +124,6 @@ let rec nfa_of_regexp r freshstate t =
                   star_nfa nfa1 t , fs1
 
   
-(*
-  | re when re = keyword_regexp "while" -> 
-    let regex = "while" in 
-      {
-        nfa_states = List.of_enum(freshstate--(freshstate+5));
-        nfa_initial = [freshstate];
-        nfa_final = [(freshstate+5,t)];
-        nfa_step = function 
-          | q when (q >= freshstate && q < freshstate+5) -> 
-                [(Some (Set.singleton (String.get regex (q-freshstate))), freshstate+1)]
-          | q -> [] 
-      }, freshstate + 6
-*)
 
 (* Deterministic Finite Automaton (DFA) *)
 
@@ -178,7 +165,17 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
      partant de l'état [s], et en suivant uniquement les epsilon-transitions. *)
   let rec traversal (visited: nfa_state set) (s: nfa_state) : nfa_state set =
          (* TODO *)
-         visited
+        if Set.mem s visited 
+          then visited
+        else
+          let f a (c,q) = 
+            if c = None 
+              then (traversal a q) 
+            else
+              a
+          in
+          List.fold_left f (Set.add s visited) (n.nfa_step s)          
+
   in
   traversal Set.empty s
 
