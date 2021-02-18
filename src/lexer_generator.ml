@@ -175,7 +175,6 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
               a
           in
           List.fold_left f (Set.add s visited) (n.nfa_step s)          
-
   in
   traversal Set.empty s
 
@@ -183,12 +182,12 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
    des états du NFA [n] dans l'ensemble [ls]. *)
 let epsilon_closure_set (n: nfa) (ls: nfa_state set) : nfa_state set =
    (* TODO *)
-   ls
+   Set.fold (fun bi a -> Set.union a (epsilon_closure n bi)) ls Set.empty
 
 (* [dfa_initial_state n] calcule l'état initial de l'automate déterminisé. *)
 let dfa_initial_state (n: nfa) : dfa_state =
    (* TODO *)
-   Set.empty
+   epsilon_closure_set n (Set.of_list n.nfa_initial)
 
 (* Construction de la table de transitions de l'automate DFA. *)
 
