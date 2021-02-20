@@ -15,7 +15,7 @@ let () =
   ] in
   (* Décommentez la ligne suivante pour tester sur la vraie liste d'expressions
      régulières. *)
-   (*let regexp_list = list_regexp in*)
+  let regexp_list = list_regexp in
   List.iteri
     (fun i (rg, _) -> Printf.printf "%d: %s\n" i (string_of_regexp rg))
     regexp_list;

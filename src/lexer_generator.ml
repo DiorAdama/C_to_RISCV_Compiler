@@ -403,12 +403,28 @@ type lexer_result =
 
 *)
 
+let rec final_func q = function
+    | [] -> None
+    | (qi,fi)::tl when qi = q -> Some fi
+    | _::tl -> final_func q tl
+
 let tokenize_one (d : dfa) (w: char list) : lexer_result * char list =
   let rec recognize (q: dfa_state) (w: char list)
-      (current_token: char list) (last_accepted: lexer_result * char list)
+      (current_word: char list) (last_accepted: lexer_result * char list)
     : lexer_result * char list =
-         (* TODO *)
-         last_accepted
+        match w with
+          | [] -> last_accepted
+          | hd::tl ->
+              let next_q = d.dfa_step q hd in
+                match next_q with
+                  | None -> last_accepted
+                  | Some st -> 
+                    match (final_func st d.dfa_final) with
+                      | None -> recognize st tl (current_word @ [hd]) last_accepted
+                      | Some f -> 
+                          match (f "") with 
+                            | None -> recognize st tl (current_word @ [hd]) (LRskip, tl)
+                            | Some sym -> recognize st tl (current_word @ [hd]) (LRtoken sym, tl)
   in
   recognize d.dfa_initial w [] (LRerror, w)
 
