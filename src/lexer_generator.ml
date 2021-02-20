@@ -284,7 +284,7 @@ let priority t =
 let min_priority (l: token list) : token option =
   match l with 
     | [] -> None
-    | hd::tl -> 
+    | l -> 
         let f a bi = 
           if (priority bi < priority a)
             then bi
@@ -302,10 +302,27 @@ let rec dfa_state_final nfa_finals dfa_st =
 
 
 let min_priority_flist fl = 
+  (*
   let token_list = List.filter_map (fun f -> f "") fl in
   let min_token = min_priority token_list in
   let ans = function s -> min_token in
   ans
+  *)
+  match fl with 
+  | [] -> None
+  | fl -> 
+      let f_fold a fi = 
+            match (fi "", a "") with
+              | None, _ -> (fun s -> None)
+              | _, None -> (fun s -> None)
+              | Some symf, Some syma ->
+                  if (priority symf < priority (syma))
+                    then fi
+                  else
+                    a
+      in
+      Some (List.fold_left f_fold (fun s -> Some SYM_EOF) fl)
+
 
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)
@@ -314,10 +331,10 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
 
   let f1 s = 
     let fl = dfa_state_final n.nfa_final s in
-    if ( fl = [])
-      then None
-    else
-      Some (s,min_priority_flist fl)
+    let minfl = min_priority_flist fl in
+      match minfl with
+        | None -> None
+        | Some mn -> Some (s, mn)
   in
   List.filter_map f1 dfa_states
   
@@ -422,7 +439,7 @@ let tokenize_one (d : dfa) (w: char list) : lexer_result * char list =
                     match (final_func st d.dfa_final) with
                       | None -> recognize st tl (current_word @ [hd]) last_accepted
                       | Some f -> 
-                          match (f "") with 
+                          match (f (string_of_char_list (current_word @ [hd]))) with 
                             | None -> recognize st tl (current_word @ [hd]) (LRskip, tl)
                             | Some sym -> recognize st tl (current_word @ [hd]) (LRtoken sym, tl)
   in
