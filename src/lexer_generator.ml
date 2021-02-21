@@ -59,8 +59,9 @@ let cat_nfa n1 n2 =
    }
 
 (* Alternatives de NFAs *)
-let alt_nfa n1 n2 =
-  let start_state = max (n1.nfa_states @ n2.nfa_states) +1 in 
+let alt_nfa n1 n2 fs =
+  (*let start_state = max (n1.nfa_states @ n2.nfa_states) +1 in*) 
+  let start_state = fs in
     {
       nfa_states = [start_state] @ n1.nfa_states @ n2.nfa_states;
       nfa_initial = [start_state];
@@ -70,15 +71,19 @@ let alt_nfa n1 n2 =
           | q when (q=start_state) -> List.map (fun bi -> (None, bi)) (n1.nfa_initial@n2.nfa_initial)
           | q -> (n1.nfa_step q)@(n2.nfa_step q)
       );
-    }
+    }, fs+1
 
    
 
 (* Répétition de NFAs *)
 (* t est de type [string -> token option] *)
-let star_nfa n t =
+let star_nfa n t fs =
+(*
   let first_state = max (n.nfa_states) +1 in 
     let end_state = first_state+1 in 
+*)
+  let first_state = fs in
+    let end_state = fs+1 in
       {
         nfa_states = [first_state] @ n.nfa_states @ [end_state];
         nfa_initial = [end_state];
@@ -91,7 +96,7 @@ let star_nfa n t =
             | q when List.mem q n_final -> [(None, end_state)]
             | q -> n.nfa_step q
         );
-      }
+      }, fs+2
 
 
 (* [nfa_of_regexp r freshstate t] construit un NFA qui reconnaît le même langage
@@ -118,10 +123,10 @@ let rec nfa_of_regexp r freshstate t =
   
   | Alt (re1, re2) -> let nfa1, fs1 = nfa_of_regexp re1 freshstate t in
                         let nfa2, fs2 = nfa_of_regexp re2 fs1 t in
-                          alt_nfa nfa1 nfa2, fs2
+                          alt_nfa nfa1 nfa2 fs2
                         
   | Star re1 -> let nfa1, fs1 = nfa_of_regexp re1 freshstate t in
-                  star_nfa nfa1 t , fs1
+                  star_nfa nfa1 t fs1
 
   
 
@@ -306,8 +311,8 @@ dfa_final_functions returns
 let rec dfa_final_functions nfa_finals dfa_st = 
   match nfa_finals with
     | [] -> []
-    | (q,t)::tl when Set.mem q dfa_st-> t::(dfa_state_final tl dfa_st) 
-    | _::tl -> dfa_state_final tl dfa_st
+    | (q,t)::tl when Set.mem q dfa_st-> t::(dfa_final_functions tl dfa_st) 
+    | _::tl -> dfa_final_functions tl dfa_st
 
 (*
 let min_priority_flist fl = 
@@ -341,7 +346,7 @@ skip_token returns
 *)
 let rec skip_token = function
     | [] -> false 
-    | f::tl -> (f "" = None) || skip_token tl
+    | f::tl -> (f "0" = None) || skip_token tl
 
 
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
@@ -395,7 +400,7 @@ let make_dfa_step (table: (dfa_state, (char * dfa_state) list) Hashtbl.t) =
               else
                 Some image_state
 
-    
+
 
 (* Finalement, on assemble tous ces morceaux pour construire l'automate. La
    fonction [dfa_of_nfa n] vous est grâcieusement offerte. *)
@@ -619,7 +624,7 @@ let dfa_to_dot oc (n : dfa) (cl: char list): unit =
 let nfa_of_list_regexp l =
   let (n, fs) = List.fold_left (fun (nfa, fs) (r,t) ->
       let n,fs = nfa_of_regexp r fs t in
-      (alt_nfa nfa n, fs)
+      (alt_nfa nfa n fs)
     ) ({ nfa_states = []; nfa_initial = []; nfa_final = []; nfa_step = fun _ -> [] },1)
       l in n
 
