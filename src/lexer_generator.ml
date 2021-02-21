@@ -295,13 +295,21 @@ let min_priority (l: token list) : token option =
         Some (List.fold_left f SYM_EOF l)
     
 
-let rec dfa_state_final nfa_finals dfa_st = 
+(*
+given 
+   [nfa_finals] ((q, t) list) a list of nfa final states  
+   and [dfa_st] (int set) a dfa_state 
+dfa_final_functions returns
+   the list of functions (string -> Symbol.token option )of the 
+   final nfa_states that are in dfa_state
+*)
+let rec dfa_final_functions nfa_finals dfa_st = 
   match nfa_finals with
     | [] -> []
     | (q,t)::tl when Set.mem q dfa_st-> t::(dfa_state_final tl dfa_st) 
     | _::tl -> dfa_state_final tl dfa_st
 
-
+(*
 let min_priority_flist fl = 
   (*
   let token_list = List.filter_map (fun f -> f "") fl in
@@ -323,8 +331,14 @@ let min_priority_flist fl =
                     a
       in
       Some (List.fold_left f_fold (fun s -> Some SYM_EOF) fl)
-
-
+*)
+(*
+given 
+   the list of functions returned by dfa_final_functions
+skip_token returns
+   true if there's a function that returns None in that list
+   false otherwise
+*)
 let rec skip_token = function
     | [] -> false 
     | f::tl -> (f "" = None) || skip_token tl
@@ -336,7 +350,7 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
   (dfa_state * (string -> token option)) list  =
 
   let f_fold st = 
-    let fl = dfa_state_final n.nfa_final st in
+    let fl = dfa_final_functions n.nfa_final st in
       if (fl = [])
         then None
       else if (skip_token fl) 
@@ -344,7 +358,7 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
       else
         let toks s = List.map (fun fq -> 
           match (fq s) with 
-            | None -> SYM_IDENTIFIER ""
+            | None -> SYM_IDENTIFIER ""      (* this line of code is just for syntax but should never get reached because of line 356 *)
             | Some sym -> sym   
           ) fl 
           in
