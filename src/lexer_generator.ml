@@ -60,7 +60,7 @@ let cat_nfa n1 n2 =
 
 (* Alternatives de NFAs *)
 let alt_nfa n1 n2 =
-  let start_state = min (n1.nfa_states @ n2.nfa_states) -1 in 
+  let start_state = max (n1.nfa_states @ n2.nfa_states) +1 in 
     {
       nfa_states = [start_state] @ n1.nfa_states @ n2.nfa_states;
       nfa_initial = [start_state];
@@ -112,7 +112,7 @@ let rec nfa_of_regexp r freshstate t =
                 nfa_step = fun q -> if q = freshstate then [(Some c, freshstate + 1)] else []
               }, freshstate + 2
   
-  | Cat (re1, re2) -> let nfa1, fs1 = nfa_of_regexp re1 freshstate t in
+  | Cat (re1, re2) -> let nfa1, fs1 = nfa_of_regexp re1 freshstate (fun s -> None) in
                         let nfa2, fs2 = nfa_of_regexp re2 fs1 t in
                           cat_nfa nfa1 nfa2, fs2
   
@@ -162,7 +162,7 @@ type dfa =
    des epsilon-transitions. *)
 let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
   (* La fonction [traversal visited s] effectue un parcours de l'automate en
-     partant de l'état [s], et en suivant uniquement les epsilon-transitions. *)
+     partant de l'état [s], et en suivant uniquement les epsilon-transitions. *) 
   let rec traversal (visited: nfa_state set) (s: nfa_state) : nfa_state set =
          (* TODO *)
         if Set.mem s visited 
@@ -177,6 +177,7 @@ let epsilon_closure (n: nfa) (s: nfa_state) : nfa_state set =
           List.fold_left f (Set.add s visited) (n.nfa_step s)          
   in
   traversal Set.empty s
+  
 
 (* [epsilon_closure_set n ls] calcule l'union des epsilon-fermeture de chacun
    des états du NFA [n] dans l'ensemble [ls]. *)
@@ -324,11 +325,35 @@ let min_priority_flist fl =
       Some (List.fold_left f_fold (fun s -> Some SYM_EOF) fl)
 
 
+let rec skip_token = function
+    | [] -> false 
+    | f::tl -> (f "" = None) || skip_token tl
+
+
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)
 let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
   (dfa_state * (string -> token option)) list  =
 
+  let f_fold st = 
+    let fl = dfa_state_final n.nfa_final st in
+      if (fl = [])
+        then None
+      else if (skip_token fl) 
+        then Some (st, fun s -> None)
+      else
+        let toks s = List.map (fun fq -> 
+          match (fq s) with 
+            | None -> SYM_IDENTIFIER ""
+            | Some sym -> sym   
+          ) fl 
+          in
+        Some (st, fun s -> min_priority (toks s))
+  in
+
+  List.filter_map f_fold dfa_states
+
+   (*   
   let f1 s = 
     let fl = dfa_state_final n.nfa_final s in
     let minfl = min_priority_flist fl in
@@ -337,8 +362,7 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
         | Some mn -> Some (s, mn)
   in
   List.filter_map f1 dfa_states
-  
-  
+  *)
 
 (* Construction de la relation de transition du DFA. *)
 

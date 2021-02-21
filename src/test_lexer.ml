@@ -15,7 +15,7 @@ let () =
   ] in
   (* Décommentez la ligne suivante pour tester sur la vraie liste d'expressions
      régulières. *)
-  (*let regexp_list = list_regexp in*)
+  let regexp_list = list_regexp in
   List.iteri
     (fun i (rg, _) -> Printf.printf "%d: %s\n" i (string_of_regexp rg))
     regexp_list;
@@ -32,7 +32,7 @@ let () =
   let oc = open_out "/tmp/dfa.dot" in
   dfa_to_dot oc dfa alphabet;
   close_out oc;
-
+(*
   let n =
     {
       nfa_states = [1; 2; 3; 4] ;
@@ -112,3 +112,4 @@ let () =
   build_dfa_table table n (dfa_initial_state n);
   expect_set_set "dfa states" (Hashtbl.keys table |> Set.of_enum) (Set.of_list [Set.of_list [1;2;3]; Set.of_list [2;4]; Set.of_list [2]])
 
+*)
