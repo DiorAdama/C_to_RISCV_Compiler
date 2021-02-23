@@ -82,10 +82,10 @@ let list_regexp : (regexp * (string -> token option)) list =
     (char_regexp '*',       fun s -> Some (SYM_ASTERISK));
     (char_regexp '/',       fun s -> Some (SYM_DIV));
     (char_regexp '%',       fun s -> Some (SYM_MOD));
-    (char_regexp '[',       fun s -> Some (SYM_LBRACE));
-    (char_regexp ']',       fun s -> Some (SYM_RBRACE));
-    (char_regexp '{',       fun s -> Some (SYM_LBRACKET));
-    (char_regexp '}',       fun s -> Some (SYM_RBRACKET));
+    (char_regexp '[',       fun s -> Some (SYM_LBRACKET));
+    (char_regexp ']',       fun s -> Some (SYM_RBRACKET));
+    (char_regexp '{',       fun s -> Some (SYM_LBRACE));
+    (char_regexp '}',       fun s -> Some (SYM_RBRACE));
     (char_regexp '(',       fun s -> Some (SYM_LPARENTHESIS));
     (char_regexp ')',       fun s -> Some (SYM_RPARENTHESIS));
     (char_regexp ';',       fun s -> Some (SYM_SEMICOLON));

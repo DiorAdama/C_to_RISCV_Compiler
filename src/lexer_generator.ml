@@ -314,19 +314,13 @@ let rec dfa_final_functions nfa_finals dfa_st =
     | (q,t)::tl when Set.mem q dfa_st-> t::(dfa_final_functions tl dfa_st) 
     | _::tl -> dfa_final_functions tl dfa_st
 
-(*
+
 let min_priority_flist fl = 
-  (*
-  let token_list = List.filter_map (fun f -> f "") fl in
-  let min_token = min_priority token_list in
-  let ans = function s -> min_token in
-  ans
-  *)
   match fl with 
   | [] -> None
   | fl -> 
       let f_fold a fi = 
-            match (fi "", a "") with
+            match (fi "0", a "0") with
               | None, _ -> (fun s -> None)
               | _, None -> (fun s -> None)
               | Some symf, Some syma ->
@@ -336,24 +330,25 @@ let min_priority_flist fl =
                     a
       in
       Some (List.fold_left f_fold (fun s -> Some SYM_EOF) fl)
-*)
+
 (*
 given 
    the list of functions returned by dfa_final_functions
 skip_token returns
    true if there's a function that returns None in that list
    false otherwise
-*)
+
 let rec skip_token = function
     | [] -> false 
     | f::tl -> (f "0" = None) || skip_token tl
+*)
 
 
 (* [dfa_final_states n dfa_states] renvoie la liste des états finaux du DFA,
    accompagnés du token qu'ils reconnaissent. *)
 let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
   (dfa_state * (string -> token option)) list  =
-
+(*
   let f_fold st = 
     let fl = dfa_final_functions n.nfa_final st in
       if (fl = [])
@@ -363,7 +358,7 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
       else
         let toks s = List.map (fun fq -> 
           match (fq s) with 
-            | None -> SYM_IDENTIFIER ""      (* this line of code is just for syntax but should never get reached because of line 356 *)
+            | None -> failwith "error in dfa_final_states"      
             | Some sym -> sym   
           ) fl 
           in
@@ -372,16 +367,17 @@ let dfa_final_states (n: nfa) (dfa_states: dfa_state list) :
 
   List.filter_map f_fold dfa_states
 
-   (*   
+  *)
+  
   let f1 s = 
-    let fl = dfa_state_final n.nfa_final s in
+    let fl = dfa_final_functions n.nfa_final s in
     let minfl = min_priority_flist fl in
       match minfl with
         | None -> None
         | Some mn -> Some (s, mn)
   in
   List.filter_map f1 dfa_states
-  *)
+  
 
 (* Construction de la relation de transition du DFA. *)
 
@@ -468,6 +464,11 @@ let rec final_func q = function
     | (qi,fi)::tl when qi = q -> Some fi
     | _::tl -> final_func q tl
 
+let rec is_EOF = function
+    | [] -> true
+    | hd::tl when hd = ' ' || hd = '\n'-> is_EOF tl
+    | t -> false 
+
 let tokenize_one (d : dfa) (w: char list) : lexer_result * char list =
   let rec recognize (q: dfa_state) (w: char list)
       (current_word: char list) (last_accepted: lexer_result * char list)
@@ -475,6 +476,9 @@ let tokenize_one (d : dfa) (w: char list) : lexer_result * char list =
         match w with
           | [] -> last_accepted
           | hd::tl ->
+            if is_EOF (hd::tl)   
+              then (LRtoken SYM_EOF, [])
+            else
               let next_q = d.dfa_step q hd in
                 match next_q with
                   | None -> last_accepted
