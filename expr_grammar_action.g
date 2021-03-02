@@ -23,8 +23,12 @@ axiom S
   (* TODO *)
   let resolve_associativity term other =
        (* TODO *)
-    term
-
+    let f_fold a expri = 
+      match expri with
+        | Node(tagi, childreni) -> Node(tagi, a::childreni)
+        | leaf -> failwith "operator not found"
+    in
+    List.fold_left f_fold term other
 }
 
 rules
