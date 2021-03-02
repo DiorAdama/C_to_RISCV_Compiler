@@ -37,7 +37,7 @@ FUNDEFS -> FUNDEF FUNDEFS   { $1::$2 }
 FUNDEFS -> { [] }
 
 FUNDEF -> IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS INSTR   
-          { Node (Tfundef, [$1] @ [Node (Tfunargs, $3)] @ [Node (Tfunbody, $5)] ) }
+          { Node (Tfundef, [$1] @ [Node (Tfunargs, $3)] @ [Node (Tfunbody, [$5])] ) }
 
 LPARAMS -> IDENTIFIER REST_PARAMS  { Node(Targ, [$1])::$2 }
 LPARAMS -> { [] }
@@ -45,14 +45,14 @@ LPARAMS -> { [] }
 REST_PARAMS -> SYM_COMMA IDENTIFIER REST_PARAMS   { Node(Targ, [$2])::$3 }
 REST_PARAMS -> { [] }
 
-INSTR -> IDENTIFIER SYM_ASSIGN EXPR SYM_SEMICOLON   { Node (Tassign, [Node (Tassignvar, $1::$3 )])} 
-INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS LINSTRS ELSE  { Node (Tif, $3 @ [$5] @ $6) }
-INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {Node (Twhile, $3 @ $5 )}
-INSTR -> SYM_RETURN EXPR SYM_SEMICOLON  { Node (Treturn, $2) }
-INSTR -> SYM_PRINT EXPR SYM_SEMICOLON   { Node (Tprint, $2) }
+INSTR -> IDENTIFIER SYM_ASSIGN EXPR SYM_SEMICOLON   { Node (Tassign, [Node (Tassignvar, ($1::[$3]) )])} 
+INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS LINSTRS ELSE  { Node (Tif, ([$3] @ [$5] @ $6)) }
+INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {Node (Twhile, ([$3] @ [$5]) )}
+INSTR -> SYM_RETURN EXPR SYM_SEMICOLON  { Node (Treturn, [$2]) }
+INSTR -> SYM_PRINT EXPR SYM_SEMICOLON   { Node (Tprint, [$2]) }
 INSTR -> LINSTRS { $1 }
 
-LINSTRS -> SYM_LBRACE INSTRS SYM_RBRACE   { Node (TBlock, $2) }
+LINSTRS -> SYM_LBRACE INSTRS SYM_RBRACE   { Node (Tblock, $2) }
 
 INSTRS -> INSTR INSTRS  { $1::$2 }
 INSTRS -> { [] }
