@@ -9,7 +9,7 @@ open Utils
 
 let tag_is_binop =
   function
-    Tadd -> true
+  | Tadd -> true
   | Tsub -> true
   | Tmul -> true
   | Tdiv -> true
@@ -25,7 +25,7 @@ let tag_is_binop =
 
 let binop_of_tag =
   function
-    Tadd -> Eadd
+  | Tadd -> Eadd
   | Tsub -> Esub
   | Tmul -> Emul
   | Tdiv -> Ediv
@@ -44,11 +44,26 @@ let binop_of_tag =
 let rec make_eexpr_of_ast (a: tree) : expr res =
   let res =
     match a with
-    | Node(t, [e1; e2]) when tag_is_binop t ->
-         Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
-                        (string_of_ast a))
-    | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
-                    (string_of_ast a))
+
+      | IntLeaf x -> OK (Eint x)
+
+      | CharLeaf c -> OK (Evar (string_of_char_list [c]))
+
+      | StringLeaf s -> OK (Evar s)
+
+      | Node(t, [e1; e2]) when tag_is_binop t ->
+          let expr1 = make_eexpr_of_ast e1 in
+            let expr2 = make_eexpr_of_ast e2 in
+            (
+              match expr1, expr2 with
+              
+                | Error _ , _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s" (string_of_ast e1))
+                | _ , Error _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s" (string_of_ast e2))
+                | OK ex1, OK ex2 -> OK (Ebinop (binop_of_tag t, ex1, ex2))
+            )
+
+      | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
+                      (string_of_ast a))
   in
   match res with
     OK o -> res
@@ -99,4 +114,5 @@ let pass_elang ast =
   | OK  ep ->
     dump !e_dump dump_e ep (fun file () ->
         add_to_report "e" "E" (Code (file_contents file))); OK ep
+
 

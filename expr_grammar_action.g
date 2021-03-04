@@ -20,9 +20,8 @@ axiom S
   open Batteries
   open Utils
 
-  (* TODO *)
+  
   let resolve_associativity term other =
-       (* TODO *)
     let f_fold a expri = 
       match expri with
         | Node(tagi, childreni) -> Node(tagi, a::childreni)

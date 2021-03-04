@@ -10,6 +10,7 @@ type ('a , 'b, 'c) trisum = Tri1 of 'a | Tri2 of 'b | Tri3 of 'c
 let string_of_error (msg: string) : string =
   msg
 
+  
 let sprintf msg =
   let s = BatBuffer.create 17 in
   msg (output_buffer s);
