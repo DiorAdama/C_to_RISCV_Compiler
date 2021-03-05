@@ -123,10 +123,13 @@ let make_ident (a: tree) : string res =
 
 let make_fundef_of_ast (a: tree) : (string * efun) res =
   match a with
-  | Node (Tfundef, [StringLeaf fname; Node (Tfunargs, fargs); fbody]) ->
-    list_map_res make_ident fargs >>= fun fargs ->
-     (* TODO *)
-     Error "make_fundef_of_ast: Not implemented, yet."
+  | Node (Tfundef, [StringLeaf fname; Node (Tfunargs, fargs); Node (Tfunbody, [fblock])]) ->
+      list_map_res make_ident fargs >>= fun fargs ->
+        make_einstr_of_ast fblock >>= fun fblock ->
+          OK (fname, {
+            funargs= fargs;
+            funbody= fblock
+          })
   | _ ->
     Error (Printf.sprintf "make_fundef_of_ast: Expected a Tfundef, got %s."
              (string_of_ast a))
