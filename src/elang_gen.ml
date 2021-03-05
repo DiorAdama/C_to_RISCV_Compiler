@@ -84,6 +84,11 @@ let rec make_einstr_of_ast (a: tree) : instr res =
               make_einstr_of_ast instr2 >>= fun i2 ->
                 OK (Iif (ex, i1, i2))
       )
+      | Node (Tif, [expr; instr1]) ->(
+        make_eexpr_of_ast expr >>= fun ex ->
+          make_einstr_of_ast instr1 >>= fun i1 ->
+              OK (Iif (ex, i1, Iblock []))
+    )
       | Node (Twhile, [expr; instr]) ->(
           make_eexpr_of_ast expr >>= fun ex ->
             make_einstr_of_ast instr >>= fun i ->

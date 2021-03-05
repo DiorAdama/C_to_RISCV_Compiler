@@ -36,7 +36,7 @@ let eval_unop (u: unop) : int -> int =
 let rec eval_eexpr st (e : expr) : int res =
    match e with 
       | Eint i -> OK i
-      | Evar name -> OK (Hashtbl.find st name)
+      | Evar name -> OK (Hashtbl.find st.env name)
       | Eunop (unary, x) ->(
          eval_eexpr st x >>= fun x ->
          OK (eval_unop unary x)
@@ -61,7 +61,41 @@ let rec eval_eexpr st (e : expr) : int res =
    - [st'] est l'état mis à jour. *)
 let rec eval_einstr oc (st: int state) (ins: instr) :
   (int option * int state) res =
-   Error "eval_einstr not implemented yet."
+
+   match ins with
+      | Iassign (var_name, expr) ->(
+            eval_eexpr st expr >>= fun expr ->
+            Hashtbl.replace st.env var_name expr;
+            OK (None, st)
+      )
+      | Iif (ex, i1, i2) ->(
+            if eval_eexpr st ex = (OK 1) then
+               eval_einstr oc st i1
+            else
+               eval_einstr oc st i2
+      ) 
+      | Iwhile (ex, i) ->(
+         if eval_eexpr st ex = (OK 1) then
+            eval_einstr oc st i
+         else
+            OK (None, st)
+      ) 
+      | Iblock instrs -> (
+         let f_fold a ii = 
+            a >>= fun a ->
+            eval_einstr oc (snd a) ii 
+         in
+         List.fold_left f_fold (OK (None, st)) instrs
+      )
+      | Ireturn ex ->(
+         eval_eexpr st ex >>= fun ex ->
+            OK (Some ex, st)
+      )
+      | Iprint ex ->(
+         eval_eexpr st ex >>= fun ex ->
+            Format.fprintf oc "%d" ex;
+            OK (None, st)
+      )
 
 (* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
    [fname]) en partant de l'état [st], avec les arguments [vargs].
