@@ -12,17 +12,40 @@ let binop_bool_to_int f x y = if f x y then 1 else 0
    et [y]. *)
 let eval_binop (b: binop) : int -> int -> int =
   match b with
-   | _ -> fun x y -> 0
+   | Eadd -> fun x y -> x+y
+   | Esub -> fun x y -> x-y
+   | Emul -> fun x y -> x*y
+   | Ediv -> fun x y -> x/y
+   | Emod -> fun x y -> x mod y
+   | Exor -> fun x y -> x lxor y
+
+   | Eceq -> binop_bool_to_int (fun x y -> x=y)
+   | Ecne -> binop_bool_to_int (fun x y -> x<>y)
+   | Ecgt -> binop_bool_to_int (fun x y -> x>y)
+   | Eclt -> binop_bool_to_int (fun x y -> x<y)
+   | Ecge -> binop_bool_to_int (fun x y -> x>=y)
+   | Ecle -> binop_bool_to_int (fun x y -> x<=y)
 
 (* [eval_unop u x] évalue l'opération unaire [u] sur l'argument [x]. *)
 let eval_unop (u: unop) : int -> int =
   match u with
-   | _ -> fun x -> 0
+   | Eneg -> fun x -> -x
 
 (* [eval_eexpr st e] évalue l'expression [e] dans l'état [st]. Renvoie une
    erreur si besoin. *)
 let rec eval_eexpr st (e : expr) : int res =
-   Error "eval_eexpr not implemented yet."
+   match e with 
+      | Eint i -> OK i
+      | Evar name -> OK (Hashtbl.find st name)
+      | Eunop (unary, x) ->(
+         eval_eexpr st x >>= fun x ->
+         OK (eval_unop unary x)
+      )  
+      | Ebinop (binary, x, y) ->(
+         eval_eexpr st x >>= fun x ->
+            eval_eexpr st y >>= fun y ->
+               OK (eval_binop binary x y)
+      )
 
 (* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].
 
@@ -81,6 +104,8 @@ let eval_efun oc (st: int state) ({ funargs; funbody}: efun)
 
    - [Error msg] lorsqu'une erreur survient.
    *)
+
+
 let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   : int option res =
   let st = init_state memsize in
@@ -88,5 +113,7 @@ let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
   let n = List.length f.funargs in
   let params = take n params in
+  List.iter2 (Hashtbl.replace st.env ) f.funargs params;
   eval_efun oc st f "main" params >>= fun (v, st) ->
   OK v
+
