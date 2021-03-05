@@ -51,33 +51,37 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
 
       | StringLeaf s -> OK (Evar s)
 
-      | Node(t, [e1; e2]) when tag_is_binop t ->
-          let expr1 = make_eexpr_of_ast e1 in
-            let expr2 = make_eexpr_of_ast e2 in
-            (
-              match expr1, expr2 with
-              
-                | Error _ , _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s" (string_of_ast e1))
-                | _ , Error _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s" (string_of_ast e2))
-                | OK ex1, OK ex2 -> OK (Ebinop (binop_of_tag t, ex1, ex2))
-            )
+      | Node(t, [e1; e2]) when tag_is_binop t ->(
+          make_eexpr_of_ast e1 >>= fun ex1 -> 
+          make_eexpr_of_ast e2 >>= fun ex2 ->
+            OK (Ebinop (binop_of_tag t, ex1, ex2)))
 
       | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
                       (string_of_ast a))
   in
   match res with
-    OK o -> res
+  | OK o -> res
   | Error msg -> Error (Format.sprintf "In make_eexpr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
+                        
+
+let string_of_varexpr = function 
+  | Evar s -> OK s
+  | _ -> Error "The given expression is not a variable"
 
 let rec make_einstr_of_ast (a: tree) : instr res =
-  let res =
+  let res = 
     match a with
-    | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"
-                    (string_of_ast a))
+      | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) -> (
+          make_eexpr_of_ast e1 >>= string_of_varexpr >>= fun ex1 ->   
+          make_eexpr_of_ast e2 >>= fun ex2 ->  
+              OK (Iassign (ex1, ex2)))
+              
+      | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"
+                      (string_of_ast a))
   in
   match res with
-    OK o -> res
+  | OK o -> res
   | Error msg -> Error (Format.sprintf "In make_einstr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
 
