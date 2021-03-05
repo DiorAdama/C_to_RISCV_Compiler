@@ -75,10 +75,14 @@ let rec eval_einstr oc (st: int state) (ins: instr) :
                eval_einstr oc st i2
       ) 
       | Iwhile (ex, i) ->(
-         if eval_eexpr st ex = (OK 1) then
-            eval_einstr oc st i
-         else
-            OK (None, st)
+         let rec f_while ret_while state_while = 
+            if eval_eexpr st ex = (OK 1) then
+               eval_einstr oc state_while i >>= fun (next_ret, next_st) ->
+                  f_while next_ret next_st
+            else
+               OK (ret_while, state_while)
+         in
+         f_while None st
       ) 
       | Iblock instrs -> (
          let f_fold a ii = 
@@ -93,7 +97,7 @@ let rec eval_einstr oc (st: int state) (ins: instr) :
       )
       | Iprint ex ->(
          eval_eexpr st ex >>= fun ex ->
-            Format.fprintf oc "%d" ex;
+            Format.fprintf oc "%d\n" ex;
             OK (None, st)
       )
 
