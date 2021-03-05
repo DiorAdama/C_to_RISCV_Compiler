@@ -72,11 +72,40 @@ let string_of_varexpr = function
 let rec make_einstr_of_ast (a: tree) : instr res =
   let res = 
     match a with
+
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) -> (
           make_eexpr_of_ast e1 >>= string_of_varexpr >>= fun ex1 ->   
           make_eexpr_of_ast e2 >>= fun ex2 ->  
-              OK (Iassign (ex1, ex2)))
-              
+              OK (Iassign (ex1, ex2))
+      )
+      | Node (Tif, [expr; instr1; instr2]) ->(
+          make_eexpr_of_ast expr >>= fun ex ->
+            make_einstr_of_ast instr1 >>= fun i1 ->
+              make_einstr_of_ast instr2 >>= fun i2 ->
+                OK (Iif (ex, i1, i2))
+      )
+      | Node (Twhile, [expr; instr]) ->(
+          make_eexpr_of_ast expr >>= fun ex ->
+            make_einstr_of_ast instr >>= fun i ->
+              OK (Iwhile (ex, i))
+      )
+      | Node (Tblock, instrs) ->( 
+          let f_fold a instri = 
+            make_einstr_of_ast instri >>= fun i ->
+              a >>= fun l ->
+                OK (l @ [i])
+          in
+          List.fold_left f_fold (OK []) instrs >>= fun instr_list ->
+          OK (Iblock instr_list)
+      )
+      | Node (Treturn, [expr]) ->(
+        make_eexpr_of_ast expr >>= fun ex ->
+          OK (Ireturn ex)
+      )
+      | Node (Tprint, [expr]) ->(
+        make_eexpr_of_ast expr >>= fun ex ->
+          OK (Iprint ex)
+      )  
       | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"
                       (string_of_ast a))
   in
