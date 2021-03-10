@@ -5,7 +5,7 @@ open Batteries
 open BatList
 
 type expr =
-    Ebinop of binop * expr * expr
+  | Ebinop of binop * expr * expr
   | Eunop of unop * expr
   | Eint of int
   | Evar of string
@@ -74,4 +74,5 @@ let rec size_instr (i: cfg_node) : int =
 
 let size_fun f =
   Hashtbl.fold (fun k v acc -> acc + size_instr v) f 0
+
 
