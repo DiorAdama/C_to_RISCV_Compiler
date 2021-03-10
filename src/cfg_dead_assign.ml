@@ -16,15 +16,17 @@ open Options
 let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_fun) =
   let changed = ref false in
   let lives = live_cfg_fun f in
+  Hashtbl.iter (fun a b ->  print_bool (Set.is_empty b)) lives;
   let cfgfunbody =
     Hashtbl.map (fun (n: int) (m: cfg_node) ->
         match m with
           | Cassign (var, e, i) -> 
-              changed := not (Set.mem var (live_after_node cfgfunbody n lives));
-              if (!changed) 
-                then Cnop i
+              let b = Set.mem var (live_after_node f.cfgfunbody n lives) in
+              changed := !changed || not b;
+              if (b) 
+                then m
               else
-                m
+                Cnop i
           | _ -> m
       ) cfgfunbody in
   ({ f with cfgfunbody }, !changed )

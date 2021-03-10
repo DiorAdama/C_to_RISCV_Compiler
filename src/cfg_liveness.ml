@@ -8,7 +8,7 @@ open Utils
 (* [vars_in_expr e] renvoie l'ensemble des variables qui apparaissent dans [e]. *)
 let rec vars_in_expr (e: expr) =
    match e with
-      | Evar s -> Set.add s Set.empty
+      | Evar s -> Set.singleton s
       | Ebinop (_, e1, e2) -> Set.union (vars_in_expr e1) (vars_in_expr e2)
       | Eunop (_, e1) -> vars_in_expr e1
       | _ -> Set.empty
@@ -38,7 +38,10 @@ let live_after_node cfg n (lives: (int, string Set.t) Hashtbl.t) : string Set.t 
    Cette fonction met à jour l'état de l'analyse [lives] et renvoie un booléen
    qui indique si le calcul a progressé durant cette itération (i.e. s'il existe
    au moins un nœud n pour lequel l'ensemble des variables vivantes avant ce
-   nœud a changé). *)
+   nœud a changé). 
+   vrai s'il n'ya pas eu de changement
+   faux sinon
+   *)
 let live_cfg_nodes cfg (lives : (int, string Set.t) Hashtbl.t) =
    let f_fold nodei cfg_nodei a = 
       let live_in = Hashtbl.find lives nodei in
@@ -47,20 +50,21 @@ let live_cfg_nodes cfg (lives : (int, string Set.t) Hashtbl.t) =
       if ( new_live_in = live_in) then
          a && true
       else
-         a && false
+         false
    in
-   false && (Hashtbl.fold f_fold cfg true)
+   Hashtbl.fold f_fold cfg true
 
 (* [live_cfg_fun f] calcule l'ensemble des variables vivantes avant chaque nœud
    du CFG en itérant [live_cfg_nodes] jusqu'à ce qu'un point fixe soit atteint.
    *)
 let live_cfg_fun (f: cfg_fun) : (int, string Set.t) Hashtbl.t =
    let lives = Hashtbl.create 17 in
+   Hashtbl.iter (fun a b -> Hashtbl.add lives a Set.empty) f.cfgfunbody;
    let rec looper tbl = 
       if (live_cfg_nodes f.cfgfunbody lives)
-         then looper tbl
+         then tbl
       else
-         tbl
+         looper tbl
    in
    looper lives
 
