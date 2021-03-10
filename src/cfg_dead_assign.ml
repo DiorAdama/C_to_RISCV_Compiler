@@ -15,11 +15,17 @@ open Options
    fait. *)
 let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_fun) =
   let changed = ref false in
+  let lives = live_cfg_fun f in
   let cfgfunbody =
     Hashtbl.map (fun (n: int) (m: cfg_node) ->
         match m with
-           (* TODO *)
-        | _ -> m
+          | Cassign (var, e, i) -> 
+              changed := not (Set.mem var (live_after_node cfgfunbody n lives));
+              if (!changed) 
+                then Cnop i
+              else
+                m
+          | _ -> m
       ) cfgfunbody in
   ({ f with cfgfunbody }, !changed )
 
@@ -27,8 +33,10 @@ let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_
    notamment sur le fichier de test [basic/useless_assigns.e]. *)
 let rec iter_dead_assign_elimination_fun f =
   let f, c = dead_assign_elimination_fun f in
-   (* TODO *)
-   f
+    if c then
+      iter_dead_assign_elimination_fun f
+    else
+      f
 
 let dead_assign_elimination_gdef = function
     Gfun f -> Gfun (iter_dead_assign_elimination_fun f)
