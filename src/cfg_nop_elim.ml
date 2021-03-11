@@ -14,8 +14,14 @@ open Options
    Si le nœud [n] contient [Cnop s], alors [(n,s)] devrait être dans le résultat.
 *)
 let nop_transitions (cfgfunbody: (int, cfg_node) Hashtbl.t) : (int * int) list =
-   (* TODO *)
-   []
+   let f_fold key_i node_i a = 
+      match node_i with
+         | Cnop s -> (key_i, s)::a
+         | _ -> a
+   in
+   Hashtbl.fold f_fold cfgfunbody []
+   
+
 
 
 (* [follow n l visited] donne le premier successeur à partir de [n] qui ne soit
@@ -26,9 +32,13 @@ let nop_transitions (cfgfunbody: (int, cfg_node) Hashtbl.t) : (int * int) list =
 
    L'ensemble [visited] est utilisé pour éviter les boucles.
    *)
-let rec follow (n: int) (l: (int * int) list) (visited: int Set.t) : int =
-   (* TODO *)
-   n
+
+let rec follow (n: int) (l: (int * int) list) (visited: int Set.t) : int = 
+   let visited = Set.add n visited in 
+   match List.assoc_opt n l with 
+      | Some k when Set.mem k visited -> failwith "Caught In a Loop of NOP :(" 
+      | Some node_key -> follow node_key l visited 
+      | None -> n 
 
 (* [nop_transitions_closed] contient la liste [(n,s)] telle que l'instruction au
    nœud [n] est le début d'une chaîne de NOPs qui termine au nœud [s]. Les
@@ -37,7 +47,7 @@ let rec follow (n: int) (l: (int * int) list) (visited: int Set.t) : int =
 let nop_transitions_closed cfgfunbody =
   List.map (fun (node_id, node) ->
       (node_id, follow node_id (nop_transitions cfgfunbody) Set.empty))
-    (nop_transitions cfgfunbody)
+    (nop_transitions cfgfunbody) 
 
 (* Nous allons maintenant réécrire notre programme pour remplacer les
    successeurs [s] de chaque nœud du CFG de la manière suivante : si [s] est le
@@ -47,13 +57,14 @@ let nop_transitions_closed cfgfunbody =
 (* [replace_succ nop_succs s] donne le nouveau nom du nœud [s], en utilisant la
    liste [nop_succs] (telle que renvoyée par [nop_transitions_closed]). *)
 let replace_succ nop_succs s =
-   s
+   List.assoc s nop_succs
 
 (* [replace_succs nop_succs n] remplace le nœud [n] par un nœud équivalent où on
    a remplacé les successeurs, en utilisant la liste [nop_succs]. *)
 let replace_succs nop_succs (n: cfg_node) =
-   (* TODO *)
-   n
+   n 
+
+   
 
 (* [nop_elim_fun f] applique la fonction [replace_succs] à chaque nœud du CFG. *)
 let nop_elim_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_fun) =
