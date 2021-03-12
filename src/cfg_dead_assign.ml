@@ -7,6 +7,7 @@ open Report
 open Cfg_print
 open Options
 
+
 (* Dead Assign Elimination  -- Élimination des affectations mortes *)
 
 (* [dead_assign_elimination_fun f] élimine les affectations mortes dans la
@@ -16,7 +17,6 @@ open Options
 let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_fun) =
   let changed = ref false in
   let lives = live_cfg_fun f in
-  Hashtbl.iter (fun a b ->  print_bool (Set.is_empty b)) lives;
   let cfgfunbody =
     Hashtbl.map (fun (n: int) (m: cfg_node) ->
         match m with
@@ -36,12 +36,12 @@ let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_
 let rec iter_dead_assign_elimination_fun f =
   let f, c = dead_assign_elimination_fun f in
     if c then
-      iter_dead_assign_elimination_fun f
+      iter_dead_assign_elimination_fun f 
     else
       f
 
 let dead_assign_elimination_gdef = function
-    Gfun f -> Gfun (iter_dead_assign_elimination_fun f)
+    Gfun f -> Gfun (iter_dead_assign_elimination_fun f )
 
 let dead_assign_elimination p =
   if !Options.no_cfg_dae
