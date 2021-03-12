@@ -42,7 +42,7 @@ let rec follow (n: int) (l: (int * int) list) (visited: int Set.t) : int =
 
 (* [nop_transitions_closed] contient la liste [(n,s)] telle que l'instruction au
    nœud [n] est le début d'une chaîne de NOPs qui termine au nœud [s]. Les
-   enseignants du cours de compiilation sont heureux de vous offrir cette
+   enseignants du cours de compilation sont heureux de vous offrir cette
    fonction. *)
 let nop_transitions_closed cfgfunbody =
   List.map (fun (node_id, node) ->
@@ -57,14 +57,22 @@ let nop_transitions_closed cfgfunbody =
 (* [replace_succ nop_succs s] donne le nouveau nom du nœud [s], en utilisant la
    liste [nop_succs] (telle que renvoyée par [nop_transitions_closed]). *)
 let replace_succ nop_succs s =
-   List.assoc s nop_succs
+   match List.assoc_opt s nop_succs with 
+      | None -> s 
+      | Some i -> i
 
 (* [replace_succs nop_succs n] remplace le nœud [n] par un nœud équivalent où on
    a remplacé les successeurs, en utilisant la liste [nop_succs]. *)
 let replace_succs nop_succs (n: cfg_node) =
-   n 
+   match n with 
+      | Cassign (var, ex, neighb) -> Cassign (var, ex, replace_succ nop_succs neighb)
+      | Creturn ex -> n
+      | Cprint (ex, neighb) -> Cprint (ex, replace_succ nop_succs neighb)
+      | Ccmp (ex, neighb1, neighb2) -> Ccmp (ex, replace_succ nop_succs neighb1, replace_succ nop_succs neighb2)
+      | Cnop neighb -> failwith "There are still NOP nodes here :("
+      
 
-   
+
 
 (* [nop_elim_fun f] applique la fonction [replace_succs] à chaque nœud du CFG. *)
 let nop_elim_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_fun) =
@@ -77,13 +85,17 @@ let nop_elim_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_fun) =
      (inaccessibles), et appliquer la fonction [replace_succs] aux nœuds qui
      resteront.
   *)
+  let cfgentry = replace_succ nop_transf cfgentry in
   let cfgfunbody = Hashtbl.filter_map (fun n node ->
-         (* TODO *)
-         Some node
+         if (List.mem_assoc n nop_transf) || ( n<>cfgentry && Set.is_empty (preds cfgfunbody n)) 
+            then None
+         else
+            Some (replace_succs nop_transf node)
     ) cfgfunbody in
+
   (* La fonction renvoyée est composée du nouveau [cfgfunbody] que l'on vient de
      calculer, et le point d'entrée est transformé en conséquence. *)
-  {f with cfgfunbody; cfgentry = replace_succ nop_transf cfgentry }
+  {f with cfgfunbody; cfgentry }
 
 let nop_elim_gdef gd =
   match gd with
