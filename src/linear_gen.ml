@@ -24,7 +24,7 @@ let sort_blocks (nodes: (int, rtl_instr list) Hashtbl.t) entry =
     match succs_of_rtl_instrs (Hashtbl.find nodes n) with 
       | [] -> order
       | [s] -> if (List.mem s order) then order else add_block order s 
-      | [s1; s2] -> add_block (add_block order s1 ) s2 
+      | [s1; s2] -> add_block (add_block order s2 ) s1 
       | _ -> failwith "CFG Node with more than 2 successors"  
   in
   add_block [] entry 
@@ -36,12 +36,12 @@ let rec remove_useless_jumps (l: rtl_instr list) =
     match a with 
       | [] -> [rtl_ins]
       | hd::tl -> 
-          match hd with 
+          (match hd with 
             | Rlabel i -> 
                 (match rtl_ins with 
-                  | Rjmp i -> a 
+                  | Rjmp j when j=i -> a 
                   | _ -> rtl_ins::a)
-            | _ -> rtl_ins::a
+            | _ -> rtl_ins::a)
   in
   List.fold_right f_fold l []
 
