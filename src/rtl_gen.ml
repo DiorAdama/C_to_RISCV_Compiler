@@ -149,3 +149,5 @@ let pass_rtl_gen cfg =
   dump !rtl_dump dump_rtl_prog rtl
     (fun file () -> add_to_report "rtl" "RTL" (Code (file_contents file)));
   OK rtl
+
+  

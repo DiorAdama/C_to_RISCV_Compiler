@@ -9,3 +9,4 @@ type linear_fun = {
   linearfunbody: rtl_instr list;
   linearfuninfo: (string*reg) list;
 }
+

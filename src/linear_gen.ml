@@ -20,22 +20,48 @@ let rec succs_of_rtl_instrs il : int list =
 (* effectue un tri topologique des blocs.  *)
 let sort_blocks (nodes: (int, rtl_instr list) Hashtbl.t) entry =
   let rec add_block order n =
-   (* TODO *)
-   List.of_enum (Hashtbl.keys nodes)
+    let order = order @ [n] in 
+    match succs_of_rtl_instrs (Hashtbl.find nodes n) with 
+      | [] -> order
+      | [s] -> if (List.mem s order) then order else add_block order s 
+      | [s1; s2] -> add_block (add_block order s1 ) s2 
+      | _ -> failwith "CFG Node with more than 2 successors"  
   in
-  add_block [] entry
+  add_block [] entry 
 
 
 (* Supprime les jumps inutiles (Jmp à un label défini juste en dessous). *)
 let rec remove_useless_jumps (l: rtl_instr list) =
-   (* TODO *)
-   l
+  let f_fold rtl_ins a = 
+    match a with 
+      | [] -> [rtl_ins]
+      | hd::tl -> 
+          match hd with 
+            | Rlabel i -> 
+                (match rtl_ins with 
+                  | Rjmp i -> a 
+                  | _ -> rtl_ins::a)
+            | _ -> rtl_ins::a
+  in
+  List.fold_right f_fold l []
 
+
+let rec useful_labels l = 
+  match l with
+    | [] -> Set.empty
+    | (Rjmp i)::tl ->  Set.add i (useful_labels tl) 
+    | (Rbranch (_, _, _, i))::tl -> Set.add i (useful_labels tl) 
+    | _::tl -> useful_labels tl
 
 (* Remove labels that are never jumped to. *)
 let remove_useless_labels (l: rtl_instr list) =
-   (* TODO *)
-   l
+  let ul = useful_labels l in 
+  let f_filter rtl_ins = 
+    match rtl_ins with 
+      | Rlabel i when not (Set.mem i ul) -> false 
+      | _ -> true
+  in
+  List.filter f_filter l
 
 let linear_of_rtl_fun
     ({ rtlfunargs; rtlfunbody; rtlfunentry; rtlfuninfo }: rtl_fun) =
@@ -65,3 +91,4 @@ let pass_linearize rtl =
   dump !linear_dump (fun oc -> dump_linear_prog oc (Some lives)) linear
     (fun file () -> add_to_report "linear" "Linear" (Code (file_contents file)));
   OK (linear, lives)
+

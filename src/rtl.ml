@@ -41,3 +41,5 @@ let written_rtl_regs_instr (i: rtl_instr) =
 let written_rtl_regs (l: rtl_instr list) =
   List.fold_left (fun acc i -> Set.union acc (written_rtl_regs_instr i))
     Set.empty l
+
+    
