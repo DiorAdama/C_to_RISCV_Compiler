@@ -80,8 +80,9 @@ let regalloc_on_stack_fun (f: linear_fun) : ((reg, loc) Hashtbl.t * int)=
 *)
 
 let add_interf (rig : (reg, reg Set.t) Hashtbl.t) (x: reg) (y: reg) : unit =
-    (* TODO *)
-    ()
+    Hashtbl.replace rig x (Set.add y (Hashtbl.find rig x));
+    Hashtbl.replace rig y (Set.add x (Hashtbl.find rig y))
+    
 
 
 (* [make_interf_live rig live] ajoute des arcs dans le graphe d'interférence
@@ -90,8 +91,16 @@ let add_interf (rig : (reg, reg Set.t) Hashtbl.t) (x: reg) (y: reg) : unit =
 let make_interf_live
     (rig: (reg, reg Set.t) Hashtbl.t)
     (live : (int, reg Set.t) Hashtbl.t) : unit =
-    (* TODO *)
-   ()
+    
+    let f_iter instr_id alive = 
+      Set.iter (fun x ->(
+        Set.iter (fun y ->
+            if x=y then ()
+            else add_interf rig x y
+          ) alive)
+        ) alive
+    in 
+    Hashtbl.iter f_iter live
 
 (* [build_interference_graph live_out] construit, en utilisant les fonctions que
    vous avez écrites, le graphe d'interférence en fonction de la vivacité des
