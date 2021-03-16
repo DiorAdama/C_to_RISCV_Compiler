@@ -178,7 +178,7 @@ let pick_node_with_fewer_than_n_neighbors (rig : (reg, reg Set.t) Hashtbl.t) (n:
     match ans with 
       | Some re -> Some re
       | None -> 
-          if (Set.cardinal interfer <= n)
+          if (Set.cardinal interfer < n)
             then Some r
           else
             None
@@ -274,17 +274,17 @@ let allocate (allocation: (reg, loc) Hashtbl.t) (rig: (reg, reg Set.t) Hashtbl.t
     | NoSpill r ->
         let interfer = Hashtbl.find rig r in 
           let f_fold neighb_reg neighb_loc ans = 
-            match neighb_loc with 
+            (match neighb_loc with 
               | Stk i -> ans 
               | Reg neighb_color -> 
                   if (Set.mem neighb_reg interfer)
-                      then Set.add neighb_color ans 
+                    then Set.add neighb_color ans 
                   else
-                    ans
+                    ans)
           in
           let chosen_clrs = Hashtbl.fold f_fold allocation Set.empty in 
           
-          let r_color = Set.any (Set.diff all_colors chosen_clrs) in 
+          let r_color = Set.choose (Set.diff all_colors chosen_clrs) in 
             Hashtbl.replace allocation r (Reg r_color); 
             next_stack_slot
 
