@@ -284,7 +284,7 @@ let allocate (allocation: (reg, loc) Hashtbl.t) (rig: (reg, reg Set.t) Hashtbl.t
           in
           let chosen_clrs = Hashtbl.fold f_fold allocation Set.empty in 
           
-          let r_color = Set.choose (Set.diff all_colors chosen_clrs) in 
+          let r_color = Set.any (Set.diff all_colors chosen_clrs) in 
             Hashtbl.replace allocation r (Reg r_color); 
             next_stack_slot
 
