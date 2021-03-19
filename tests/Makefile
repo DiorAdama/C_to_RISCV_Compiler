@@ -1,13 +1,14 @@
 # if make is launched with a DIR variable, pass it as the -f option to test.py
 # 'make DIR=basic/mul*.e' launches all the files starting with mul in the basic directory
 # otherwise, use basic/*.e as a default
-FILES := $(if $(DIR),$(DIR),basic/*.e)
+FILES := $(if $(DIR),$(DIR),funcall/*.e)
 
 OPTS := $(if $(OPTS), $(OPTS),)
 
 .PHONY: all
 all: ../main.native
 	./test.py -f $(FILES) $(OPTS)
+
 
 expect: ../main.native
 	OCAMLRUNPARAM=b ./test.py --make-expect -f $(FILES) $(OPTS) --args 1 2 3

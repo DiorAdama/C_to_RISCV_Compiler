@@ -52,7 +52,6 @@ type token =
  | SYM_LBRACKET
  | SYM_RBRACKET
  | SYM_ALLOC
- | SYM_PRINT
  | SYM_EXTERN
  | SYM_INCLUDE of string
  | SYM_AMPERSAND
@@ -101,7 +100,6 @@ let string_of_symbol = function
 | SYM_LBRACKET -> "SYM_LBRACKET"
 | SYM_RBRACKET -> "SYM_RBRACKET"
 | SYM_ALLOC -> "SYM_ALLOC"
-| SYM_PRINT -> "SYM_PRINT"
 | SYM_EXTERN -> "SYM_EXTERN"
 | SYM_INCLUDE(s) -> Printf.sprintf "SYM_INCLUDE(%s)" s
 | SYM_AMPERSAND -> "SYM_AMPERSAND"

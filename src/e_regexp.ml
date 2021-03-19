@@ -74,7 +74,6 @@ let list_regexp : (regexp * (string -> token option)) list =
     (keyword_regexp "if",       fun s -> Some (SYM_IF));
     (keyword_regexp "else",       fun s -> Some (SYM_ELSE));
     (keyword_regexp "return",       fun s -> Some (SYM_RETURN));
-    (keyword_regexp "print",       fun s -> Some (SYM_PRINT));
     (keyword_regexp "struct",       fun s -> Some (SYM_STRUCT));
     (char_regexp '.',       fun s -> Some (SYM_POINT));
     (char_regexp '+',       fun s -> Some (SYM_PLUS));
