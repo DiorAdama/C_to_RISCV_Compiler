@@ -26,6 +26,8 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
   | Elang.Evar v ->
     OK (Evar v)
 
+  | Elang.Ecall (fname, fargs) -> failwith "Ecall in CFG"
+
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
    to the E instruction [i].
 
@@ -70,6 +72,8 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Cprint (e,succ));
     OK (next, next + 1)
+
+  | Elang.Icall (fname, argms) -> failwith "Icall CFG"
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The
    [reachable_nodes n cfg] constructs the set of node identifiers that are

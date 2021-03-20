@@ -22,6 +22,15 @@ let dump_unop = function
   | Eneg -> Printf.sprintf "-"
 
 let rec dump_eexpr = function
+  | Ecall (fname, argms) -> (
+      let ans = fname ^ "(" in 
+        match argms with 
+          | [] -> ans ^ ")"
+          | [hd] -> ans ^ (dump_eexpr hd) ^ ")"
+          | _ ->
+              let ans = ans ^ (dump_eexpr (List.hd argms)) in 
+              List.fold_left (fun a argi -> a ^ "," ^ (dump_eexpr argi)) ans (List.tl argms)
+  )
   | Ebinop(b, e1, e2) -> Printf.sprintf "(%s %s %s)" (dump_eexpr e1) (dump_binop b) (dump_eexpr e2)
   | Eunop(u, e) -> Printf.sprintf "(%s %s)" (dump_unop u) (dump_eexpr e)
   | Eint i -> Printf.sprintf "%d" i
@@ -58,6 +67,10 @@ let rec dump_einstr_rec indent oc i =
   | Iprint(e) ->
     print_spaces oc indent;
     Format.fprintf oc "print %s;\n" (dump_eexpr e)
+
+  | Icall (fname, argms) -> 
+    print_spaces oc indent;
+    Format.fprintf oc "%s;" (dump_eexpr (Ecall (fname, argms)))
 
 let dump_einstr oc i = dump_einstr_rec 0 oc i
 

@@ -8,6 +8,7 @@ type binop = Eadd | Emul | Emod | Exor | Ediv | Esub (* binary operations *)
 type unop = Eneg
 
 type expr =
+  | Ecall of string*(expr list) 
   | Ebinop of binop * expr * expr
   | Eunop of unop * expr
   | Eint of int
@@ -15,6 +16,7 @@ type expr =
 
 type instr =
   | Iassign of string * expr
+  | Icall of string * (expr list)
   | Iif of expr * instr * instr
   | Iwhile of expr * instr
   | Iblock of instr list

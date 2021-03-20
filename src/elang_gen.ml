@@ -44,8 +44,9 @@ let binop_of_tag =
 let rec make_eexpr_of_ast (a: tree) : expr res =
   let res =
     match a with
-
       | IntLeaf x -> OK (Eint x)
+
+      | Node(t, [e]) when t = Tint-> make_eexpr_of_ast e
 
       | CharLeaf c -> OK (Evar (string_of_char_list [c]))
 
@@ -56,12 +57,27 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
           make_eexpr_of_ast e2 >>= fun ex2 ->
             OK (Ebinop (binop_of_tag t, ex1, ex2)))
 
-      | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
+      | Node (Tneg, [e]) ->(
+          make_eexpr_of_ast e >>= fun ex -> 
+            OK (Eunop (Eneg, ex))
+      )
+
+      | Node (Tcall, [(StringLeaf fname); Node(Targs, argmts)]) ->(
+        let f_fold argms ast_node = (
+          argms >>= fun argums ->
+          make_eexpr_of_ast ast_node >>= fun ex -> 
+            OK (argums@[ex])
+        ) in
+        (List.fold_left f_fold (OK []) argmts) >>= fun arguments -> 
+          OK (Ecall (fname, arguments))
+      )
+
+      | _ -> Error (Printf.sprintf "HAHAHA Unacceptable ast in make_eexpr_of_ast %s"
                       (string_of_ast a))
   in
   match res with
   | OK o -> res
-  | Error msg -> Error (Format.sprintf "In make_eexpr_of_ast %s:\n%s"
+  | Error msg -> Error (Format.sprintf "HAHA In make_eexpr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
                         
 
@@ -110,13 +126,23 @@ let rec make_einstr_of_ast (a: tree) : instr res =
       | Node (Tprint, [expr]) ->(
         make_eexpr_of_ast expr >>= fun ex ->
           OK (Iprint ex)
-      )  
-      | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"
+      ) 
+      
+      | Node (Tcall, [(StringLeaf fname); Node(Targs, argmts)]) ->(
+          make_eexpr_of_ast a >>= fun exp ->(
+            match exp with 
+              | Ecall (fn, argms) -> OK (Icall (fn, argms)) 
+              | _ -> failwith (Printf.sprintf "HAHA Unacceptable ast in make_eexpr_of_ast %s"
+                              (string_of_ast a))
+          ) 
+      )
+
+      | _ -> Error (Printf.sprintf "HAHA Unacceptable ast in make_einstr_of_ast %s"
                       (string_of_ast a))
   in
   match res with
   | OK o -> res
-  | Error msg -> Error (Format.sprintf "In make_einstr_of_ast %s:\n%s"
+  | Error msg -> Error (Format.sprintf "HAHA In make_einstr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
 
 let make_ident (a: tree) : string res =
