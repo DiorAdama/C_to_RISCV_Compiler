@@ -46,7 +46,7 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
     match a with
       | IntLeaf x -> OK (Eint x)
 
-      | Node(t, [e]) when t = Tint-> make_eexpr_of_ast e
+      | Node(Tint, [e])-> make_eexpr_of_ast e
 
       | CharLeaf c -> OK (Evar (string_of_char_list [c]))
 
@@ -72,12 +72,12 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
           OK (Ecall (fname, arguments))
       )
 
-      | _ -> Error (Printf.sprintf "HAHAHA Unacceptable ast in make_eexpr_of_ast %s"
+      | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
                       (string_of_ast a))
   in
   match res with
   | OK o -> res
-  | Error msg -> Error (Format.sprintf "HAHA In make_eexpr_of_ast %s:\n%s"
+  | Error msg -> Error (Format.sprintf "In make_eexpr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
                         
 
@@ -119,7 +119,7 @@ let rec make_einstr_of_ast (a: tree) : instr res =
           List.fold_left f_fold (OK []) instrs >>= fun instr_list ->
           OK (Iblock instr_list)
       )
-      | Node (Treturn, [expr]) ->(
+      | Node (Treturn, [expr]) -> (
         make_eexpr_of_ast expr >>= fun ex ->
           OK (Ireturn ex)
       )
@@ -132,17 +132,17 @@ let rec make_einstr_of_ast (a: tree) : instr res =
           make_eexpr_of_ast a >>= fun exp ->(
             match exp with 
               | Ecall (fn, argms) -> OK (Icall (fn, argms)) 
-              | _ -> failwith (Printf.sprintf "HAHA Unacceptable ast in make_eexpr_of_ast %s"
+              | _ -> failwith (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
                               (string_of_ast a))
           ) 
       )
 
-      | _ -> Error (Printf.sprintf "HAHA Unacceptable ast in make_einstr_of_ast %s"
+      | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"
                       (string_of_ast a))
   in
   match res with
   | OK o -> res
-  | Error msg -> Error (Format.sprintf "HAHA In make_einstr_of_ast %s:\n%s"
+  | Error msg -> Error (Format.sprintf "In make_einstr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
 
 let make_ident (a: tree) : string res =

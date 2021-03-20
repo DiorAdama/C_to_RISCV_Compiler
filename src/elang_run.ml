@@ -46,7 +46,7 @@ let rec eval_eexpr st (e : expr) : int res =
             eval_eexpr st y >>= fun y ->
                OK (eval_binop binary x y)
       )
-      | Ecall (fname, argms) -> failwith "Error in Ecall"
+      | Ecall (fname, argms) -> Error "Error in Ecall"
       
 
 (* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].
@@ -102,7 +102,7 @@ let rec eval_einstr oc (st: int state) (ins: instr) :
             Format.fprintf oc "%d\n" ex;
             OK (None, st)
       )
-      | Icall (fname, argms) -> failwith "Error In Icall"
+      | Icall (fname, argms) -> Error "Error In Icall"
 
 (* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
    [fname]) en partant de l'état [st], avec les arguments [vargs].
