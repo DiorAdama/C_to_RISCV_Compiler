@@ -62,7 +62,7 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
             let r2, l2, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) ex2 in
               let instr = Rbinop (binar, next_reg, r1, r2) in
                 (next_reg, l1 @ l2 @ [instr], next_reg+1, var2reg)
-
+      | Ecall _ -> (0, [],0,[] ) 
     
 
     
@@ -116,6 +116,7 @@ let rtl_instrs_of_cfg_node ((next_reg:int), (var2reg: (string*int) list)) (c: cf
                   let branch_instr = Rbranch (rop, r1, r2, i1) in 
                         
           ( l1 @ l2 @ [ branch_instr; jmp_instr2], next_reg, var2reg )
+      | Ccall _ -> ([], 0, var2reg)
     
 
 let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =

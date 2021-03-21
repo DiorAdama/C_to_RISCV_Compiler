@@ -120,11 +120,7 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc :
         (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
          do_builtin oc st.mem "print" arguments >>= fun ans -> 
             OK (ans, st)
-         (*
-         eval_eexpr ex st ep oc >>= fun (ex, st) ->
-            Format.fprintf oc "%d\n" ex;
-            OK (None, st)
-      *)
+            
       | Icall (fname, argms) ->
          eval_eexpr (Ecall (fname, argms)) st ep oc >>= fun (ans, new_st) ->
             OK (None, new_st)
