@@ -29,7 +29,7 @@ let rec dump_eexpr = function
           | [hd] -> ans ^ (dump_eexpr hd) ^ ")"
           | _ ->
               let ans = ans ^ (dump_eexpr (List.hd argms)) in 
-              List.fold_left (fun a argi -> a ^ "," ^ (dump_eexpr argi)) ans (List.tl argms)
+              (List.fold_left (fun a argi -> a ^ "," ^ (dump_eexpr argi)) ans (List.tl argms))^")"
   )
   | Ebinop(b, e1, e2) -> Printf.sprintf "(%s %s %s)" (dump_eexpr e1) (dump_binop b) (dump_eexpr e2)
   | Eunop(u, e) -> Printf.sprintf "(%s %s)" (dump_unop u) (dump_eexpr e)

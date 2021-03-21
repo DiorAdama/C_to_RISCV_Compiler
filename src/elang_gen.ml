@@ -46,7 +46,7 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
     match a with
       | IntLeaf x -> OK (Eint x)
 
-      | Node(Tint, [e])-> make_eexpr_of_ast e
+      | Node(Tint, [IntLeaf x])-> OK (Eint x)
 
       | CharLeaf c -> OK (Evar (string_of_char_list [c]))
 
@@ -132,7 +132,7 @@ let rec make_einstr_of_ast (a: tree) : instr res =
           make_eexpr_of_ast a >>= fun exp ->(
             match exp with 
               | Ecall (fn, argms) -> OK (Icall (fn, argms)) 
-              | _ -> failwith (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
+              | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
                               (string_of_ast a))
           ) 
       )

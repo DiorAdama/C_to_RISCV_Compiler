@@ -67,3 +67,5 @@ let find_function (ep: 'a prog) fname : 'a res =
   match List.assoc_opt fname ep with
   | Some (Gfun f) -> OK f
   | _ -> Error (Format.sprintf "Unknown function %s\n" fname)
+
+  
