@@ -55,7 +55,7 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc: (int * int state) res =
         (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
             find_function ep fname >>= fun func_def ->
             eval_efun st func_def fname arguments ep oc >>= fun (ans, st) -> 
-               option_to_res_bind ans  ("Error in Ecall " ^ fname) (fun ans -> OK (ans, st))
+               option_to_res_bind ans  ("Error in elang_run.eval_eexpr Ecall " ^ fname) (fun ans -> OK (ans, st))
 
          
 

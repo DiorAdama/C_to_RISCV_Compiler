@@ -70,7 +70,7 @@ let rec dump_einstr_rec indent oc i =
 
   | Icall (fname, argms) -> 
     print_spaces oc indent;
-    Format.fprintf oc "%s;" (dump_eexpr (Ecall (fname, argms)))
+    Format.fprintf oc "%s;\n" (dump_eexpr (Ecall (fname, argms)))
 
 let dump_einstr oc i = dump_einstr_rec 0 oc i
 

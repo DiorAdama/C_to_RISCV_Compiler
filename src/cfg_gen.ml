@@ -33,7 +33,7 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
           OK (a @ [cfg_expri])
       in
       List.fold_left f_fold (OK []) fargs >>= fun cfg_args -> 
-        OK (Cfg.Ecall (fname, cfg_args))
+        OK (Ecall (fname, cfg_args))
 
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
    to the E instruction [i].
@@ -87,7 +87,7 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
           OK (a @ [cfg_expri])
       in
       List.fold_left f_fold (OK []) argms >>= fun cfg_args -> 
-        Hashtbl.replace cfg next (Cfg.Ccall (fname, cfg_args, succ));
+        Hashtbl.replace cfg next (Ccall (fname, cfg_args, succ));
         OK (next, next+1)
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The

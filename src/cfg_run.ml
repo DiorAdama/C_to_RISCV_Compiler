@@ -70,11 +70,11 @@ and eval_cfginstr oc st ht (n: int) cp: (int * int state) res =
               ) in
               (List.fold_left f_fold (OK ([],st) ) pargs) >>= fun (arguments, st) ->
               do_builtin oc st.mem "print" arguments >>= fun ans -> 
-                option_to_res_bind ans "" (fun x -> OK (x, st))
+                eval_cfginstr oc st ht succ cp
                 
           | Ccall (fname, fargs, succ) -> 
               eval_cfgexpr (Ecall (fname, fargs)) st cp oc >>= fun (ans, st) ->
-                OK (ans, st)
+                eval_cfginstr oc st ht succ cp
 
           | _ -> Error "Unrecognized Instruction"
           
