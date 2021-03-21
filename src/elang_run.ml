@@ -33,29 +33,29 @@ let eval_unop (u: unop) : int -> int =
 
 (* [eval_eexpr st e] évalue l'expression [e] dans l'état [st]. Renvoie une
    erreur si besoin. *)
-let rec eval_eexpr (e : expr) st (ep : eprog) oc: int res =
+let rec eval_eexpr (e : expr) st (ep : eprog) oc: (int * int state) res =
    match e with 
-      | Eint i -> OK i
-      | Evar name -> OK (Hashtbl.find st.env name)
+      | Eint i -> OK (i, st)
+      | Evar name -> OK (Hashtbl.find st.env name, st)
       | Eunop (unary, x) ->(
-         eval_eexpr x st ep oc>>= fun x ->
-         OK (eval_unop unary x )
+         eval_eexpr x st ep oc >>= fun (x, st) ->
+         OK (eval_unop unary x , st)
       )  
       | Ebinop (binary, x, y) ->(
-         eval_eexpr x st ep oc >>= fun x ->
-            eval_eexpr y st ep oc >>= fun y ->
-               OK (eval_binop binary x y)
+         eval_eexpr x st ep oc >>= fun (x, st) ->
+            eval_eexpr y st ep oc >>= fun (y, st) ->
+               OK (eval_binop binary x y, st)
       )
       | Ecall (fname, argms) -> 
          let f_fold argums expri = (
-          argums >>= fun argums ->
-          eval_eexpr expri st ep oc >>= fun ans_i -> 
-            OK (argums@[ans_i])
+          argums >>= fun (argums, sti) ->
+          eval_eexpr expri sti ep oc >>= fun (ans_i, sti) -> 
+            OK ((argums@[ans_i]), sti)
         ) in
-        (List.fold_left f_fold (OK []) argms) >>= fun arguments ->
-            match List.assoc fname ep with Gfun func_def -> 
+        (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
+            find_function ep fname >>= fun func_def ->
             eval_efun st func_def fname arguments ep oc >>= fun (ans, st) -> 
-               option_to_res_bind ans  ("Error in Ecall " ^ fname) (fun ans -> OK ans)
+               option_to_res_bind ans  ("Error in Ecall " ^ fname) (fun ans -> OK (ans, st))
 
          
 
@@ -76,45 +76,51 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc :
 
    match ins with
       | Iassign (var_name, expr) ->(
-            eval_eexpr expr st ep oc >>= fun expr ->
+            eval_eexpr expr st ep oc >>= fun (expr, st) ->
             Hashtbl.replace st.env var_name expr;
             OK (None, st)
       )
       | Iif (ex, i1, i2) ->(
-            if eval_eexpr ex st ep oc = (OK 1) then
-               eval_einstr i1 st ep oc 
-            else
-               eval_einstr i2 st ep oc
+            match eval_eexpr ex st ep oc with 
+               | OK (1, new_st) -> eval_einstr i1 new_st ep oc 
+               | OK (0, new_st) -> eval_einstr i2 new_st ep oc
+               | _ -> Error "Failed to Evaluate if instruction"
       ) 
+
       | Iwhile (ex, i) ->(
          let rec f_while ret_while state_while = 
-            if eval_eexpr ex state_while ep oc = (OK 1) then
-               eval_einstr i state_while ep oc >>= fun (next_ret, next_st) ->
-                  f_while next_ret next_st
-            else
-               OK (ret_while, state_while)
+            match eval_eexpr ex state_while ep oc with 
+            | OK (1, new_st) -> 
+               eval_einstr i new_st ep oc >>= fun (next_ret, next_st) -> 
+               f_while next_ret next_st
+            | OK (0, new_st) -> OK (ret_while, new_st)
+            | _ -> Error "Failed to Evaluate while instruction"
          in
          f_while None st
       ) 
       | Iblock instrs -> (
          let f_fold a ii = 
-            a >>= fun a ->
-            eval_einstr ii (snd a) ep oc 
+            a >>= fun (ans, new_st) ->
+            match ans with 
+               | Some first_ret -> OK (ans, new_st)
+               | _ -> eval_einstr ii new_st ep oc 
          in
          List.fold_left f_fold (OK (None, st)) instrs
       )
       | Ireturn ex ->(
-         eval_eexpr ex st ep oc >>= fun ex ->
+         eval_eexpr ex st ep oc >>= fun (ex, st) ->
             OK (Some ex, st)
       )
-      | Iprint ex ->(
-         eval_eexpr ex st ep oc >>= fun ex ->
+      | Icall ("print", [ex]) ->(
+         eval_eexpr ex st ep oc >>= fun (ex, st) ->
             Format.fprintf oc "%d\n" ex;
             OK (None, st)
       )
       | Icall (fname, argms) ->
-         let ans = eval_eexpr (Ecall (fname, argms)) st ep oc in
-            OK (None, st)
+         eval_eexpr (Ecall (fname, argms)) st ep oc >>= fun (ans, new_st) ->
+            OK (None, new_st)
+      
+      | _ -> Error "unrecognized instruction"
 
 
 (* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
@@ -134,7 +140,7 @@ and eval_efun (st: int state) ({ funargs; funbody}: efun)
   let env = Hashtbl.create 17 in
   match List.iter2 (fun a v -> Hashtbl.replace env a v) funargs vargs with
   | () ->
-    eval_einstr funbody { st with env } ep oc >>= fun (v, st') ->
+    eval_einstr funbody { st with env = env } ep oc >>= fun (v, st') ->
     OK (v, { st' with env = env_save })
   | exception Invalid_argument _ ->
     Error (Format.sprintf
@@ -167,7 +173,6 @@ let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
   let n = List.length f.funargs in
   let params = take n params in
-  List.iter2 (Hashtbl.replace st.env ) f.funargs params;
   eval_efun st f "main" params ep oc >>= fun (v, st) ->
   OK v
 
