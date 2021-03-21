@@ -111,16 +111,25 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc :
          eval_eexpr ex st ep oc >>= fun (ex, st) ->
             OK (Some ex, st)
       )
-      | Icall ("print", [ex]) ->(
+      | Icall ("print", argms) -> 
+         let f_fold argums expri = (
+          argums >>= fun (argums, sti) ->
+          eval_eexpr expri sti ep oc >>= fun (ans_i, sti) -> 
+            OK ((argums@[ans_i]), sti)
+        ) in
+        (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
+         do_builtin oc st.mem "print" arguments >>= fun ans -> 
+            OK (ans, st)
+         (*
          eval_eexpr ex st ep oc >>= fun (ex, st) ->
             Format.fprintf oc "%d\n" ex;
             OK (None, st)
-      )
+      *)
       | Icall (fname, argms) ->
          eval_eexpr (Ecall (fname, argms)) st ep oc >>= fun (ans, new_st) ->
             OK (None, new_st)
       
-      | _ -> Error "unrecognized instruction"
+      | _ -> Error "Unrecognized Instruction"
 
 
 (* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
