@@ -68,10 +68,15 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     cfg_node_of_einstr next cfg cmp i >>= fun (nthen, next) ->
     Hashtbl.replace cfg cmp (Ccmp(c, nthen, succ)); OK (cmp, next + 1)
   | Elang.Iblock il ->
-    List.fold_right (fun i acc ->
-        acc >>= fun (succ, next) ->
-        cfg_node_of_einstr next cfg succ i
-      ) il (OK (succ, next))
+      if (List.is_empty il) 
+        then 
+          (Hashtbl.replace cfg next (Cnop succ); 
+          OK (next, next+1))
+      else 
+        List.fold_right (fun i acc ->
+            acc >>= fun (succ, next) ->
+            cfg_node_of_einstr next cfg succ i
+          ) il (OK (succ, next))
   | Elang.Ireturn e ->
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Creturn e); OK (next, next + 1)
@@ -136,3 +141,4 @@ let pass_cfg_gen ep =
     record_compile_result "CFG";
     dump !cfg_dump dump_cfg_prog cfg (call_dot "cfg" "CFG");
     OK cfg
+
