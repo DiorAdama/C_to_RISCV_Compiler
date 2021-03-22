@@ -64,6 +64,7 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
                 (next_reg, l1 @ l2 @ [instr], next_reg+1, var2reg)
 
       | Ecall (fname, cfg_expr_list) -> 
+          
           let f_fold (regs, instrs, n_reg, varToReg) cfg_expri = 
             let r, l, n_reg, varToreg = rtl_instrs_of_cfg_expr (n_reg, varToReg) cfg_expri in
               (regs @ [r], instrs @ l, n_reg, varToReg)

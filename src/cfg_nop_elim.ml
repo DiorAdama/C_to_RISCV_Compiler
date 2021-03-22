@@ -36,7 +36,7 @@ let nop_transitions (cfgfunbody: (int, cfg_node) Hashtbl.t) : (int * int) list =
 let rec follow (n: int) (l: (int * int) list) (visited: int Set.t) : int = 
    let visited = Set.add n visited in 
    match List.assoc_opt n l with 
-      | Some k when Set.mem k visited -> failwith "Caught In a Loop of NOP :(" 
+      | Some k when Set.mem k visited -> failwith "caught in a loop of NOP nodes :(" 
       | Some node_key -> follow node_key l visited 
       | None -> n 
 
