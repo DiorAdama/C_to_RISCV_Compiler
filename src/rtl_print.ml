@@ -52,7 +52,7 @@ let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
       in      
       match r with 
         | None -> Format.fprintf oc "%s" fcallstring
-        | Some reg -> Format.fprintf oc "%d <- %s " reg fcallstring
+        | Some reg -> Format.fprintf oc "r%d <- %s " reg fcallstring
     )
   end;
   Format.fprintf oc "\n";
