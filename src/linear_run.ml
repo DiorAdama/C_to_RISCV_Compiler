@@ -61,6 +61,8 @@ let rec exec_linear_instr oc lp fname f st (i: rtl_instr) =
     end
   | Rlabel n -> OK (None, st)
 
+  | Rcall _ -> Error "Linear run Rcall not implemented yet"
+
 and exec_linear_instr_at oc lp fname ({  linearfunbody;  } as f) st i =
   let l = List.drop_while (fun x -> x <> Rlabel i) linearfunbody in
   exec_linear_instrs oc lp fname f st l

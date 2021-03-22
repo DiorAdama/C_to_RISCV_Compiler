@@ -41,6 +41,19 @@ let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
   | Rret r -> Format.fprintf oc "ret %s" (print_reg r)
   | Rprint r -> Format.fprintf oc "print %s" (print_reg r)
   | Rlabel n -> Format.fprintf oc "%s_%d:" name n
+  | Rcall (r, fname, fargs) ->(
+      let ans = fname ^ "(" in 
+      let fcallstring = (match fargs with 
+        | [] -> ans ^ ")"
+        | [hd] -> ans ^ (print_reg hd) ^ ")"
+        | _ ->
+            let ans = ans ^ (print_reg (List.hd fargs)) in 
+            (List.fold_left (fun a argi -> a ^ "," ^ (print_reg argi)) ans (List.tl fargs))^")")
+      in      
+      match r with 
+        | None -> Format.fprintf oc "%s" fcallstring
+        | Some reg -> Format.fprintf oc "%d <- %s " reg fcallstring
+    )
   end;
   Format.fprintf oc "\n";
   dump_liveness live_out "after"

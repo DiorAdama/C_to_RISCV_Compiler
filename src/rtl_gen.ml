@@ -62,7 +62,16 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
             let r2, l2, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) ex2 in
               let instr = Rbinop (binar, next_reg, r1, r2) in
                 (next_reg, l1 @ l2 @ [instr], next_reg+1, var2reg)
-      | Ecall _ -> (0, [],0,[] ) 
+
+      | Ecall (fname, cfg_expr_list) -> 
+          let f_fold (regs, instrs, n_reg, varToReg) cfg_expri = 
+            let r, l, n_reg, varToreg = rtl_instrs_of_cfg_expr (n_reg, varToReg) cfg_expri in
+              (regs @ [r], instrs @ l, n_reg, varToReg)
+          in 
+          let (regs, instrs, next_reg, var2reg) = List.fold_left f_fold ([], [], next_reg, var2reg) cfg_expr_list in 
+          let call_instr = Rcall (Some next_reg, fname, regs) in 
+          (next_reg, instrs @ [call_instr], next_reg+1, var2reg)
+
     
 
     
@@ -98,13 +107,13 @@ let rtl_instrs_of_cfg_node ((next_reg:int), (var2reg: (string*int) list)) (c: cf
       | Creturn ex -> 
           let r, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) ex in 
             let instr = Rret r in 
-              (l @ [instr], next_reg, var2reg)
+          (l @ [instr], next_reg, var2reg)
 
       | Cprint (ex, i) ->
           let r, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) ex in 
             let instr = Rprint r in 
               let jmp_instr = Rjmp i in
-                (l @ [instr; jmp_instr], next_reg, var2reg) 
+          (l @ [instr; jmp_instr], next_reg, var2reg) 
               
       | Cnop i -> ([Rjmp i], next_reg, var2reg) 
  
@@ -116,7 +125,11 @@ let rtl_instrs_of_cfg_node ((next_reg:int), (var2reg: (string*int) list)) (c: cf
                   let branch_instr = Rbranch (rop, r1, r2, i1) in 
                         
           ( l1 @ l2 @ [ branch_instr; jmp_instr2], next_reg, var2reg )
-      | Ccall _ -> ([], 0, var2reg)
+
+      | Ccall (fname, cfg_expr_list, succ) -> 
+          let (r, l, next_reg, var2reg) = rtl_instrs_of_cfg_expr (next_reg, var2reg) (Ecall (fname, cfg_expr_list)) in 
+          let jmp_instr = Rjmp succ in 
+          ( l @ [jmp_instr], next_reg, var2reg )
     
 
 let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =

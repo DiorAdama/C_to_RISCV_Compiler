@@ -69,6 +69,8 @@ let rec exec_rtl_instr oc rp rtlfunname f st (i: rtl_instr) =
       | Some s -> OK (Some s, st)
       | _ -> Error (Printf.sprintf "Ret on undefined register (%s)" (print_reg r))
     end
+
+(*  
   | Rprint r ->
     begin match Hashtbl.find_option st.regs r with
       | Some s ->
@@ -76,8 +78,43 @@ let rec exec_rtl_instr oc rp rtlfunname f st (i: rtl_instr) =
         OK (None, st)
       | _ -> Error (Printf.sprintf "Print on undefined register (%s)" (print_reg r))
     end
+*)
   | Rlabel n -> OK (None, st)
 
+  | Rcall (ret, "print", reg_args) -> (
+      let f_fold arg_val_list reg_argi = 
+        arg_val_list >>= fun arg_val_list -> 
+          begin match Hashtbl.find_option st.regs reg_argi with
+          | Some s -> OK (arg_val_list @ [s])
+          | _ -> Error (Printf.sprintf "function %s called on an undefined register %s" "print" (print_reg reg_argi))
+          end
+      in
+      List.fold_left f_fold (OK []) reg_args >>= fun argval_list -> 
+      do_builtin oc st.mem "print" argval_list >>= fun ans -> 
+      OK (None, st)
+  )
+
+  | Rcall (ret, fname, reg_args) -> (
+      let f_fold arg_val_list reg_argi = 
+        arg_val_list >>= fun arg_val_list -> 
+          begin match Hashtbl.find_option st.regs reg_argi with
+          | Some s -> OK (arg_val_list @ [s])
+          | _ -> Error (Printf.sprintf "function %s called on an undefined register %s" fname (print_reg reg_argi))
+          end
+      in
+      List.fold_left f_fold (OK []) reg_args >>= fun argval_list -> 
+        find_function rp fname >>= fun func_def ->
+        exec_rtl_fun oc rp st fname func_def argval_list >>= fun (ans, st) -> (
+          match ret, ans with 
+            | None, None -> OK (None, st)
+            | Some rd, Some i -> 
+                Hashtbl.replace st.regs rd i;
+                OK (None, st)
+            | _ -> Error (Printf.sprintf "Expected a return value from function %s" fname)
+        )     
+  )
+  | _ -> Error "Unrecognized RTL instruction"
+        
 and exec_rtl_instr_at oc rp rtlfunname ({ rtlfunbody;  } as f: rtl_fun) st i =
   match Hashtbl.find_option rtlfunbody i with
   | Some l -> exec_rtl_instrs oc rp rtlfunname f st l
