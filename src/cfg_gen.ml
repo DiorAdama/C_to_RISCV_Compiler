@@ -48,8 +48,8 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
    This function returns a pair (n, next) where [n] is the identifer of the
    node generated, and [next] is the new next available CFG node identifier.
 
-   Hint: several nodes may be generated for a single E instruction.
-*)
+   Hint: several nodes may be generated for a single E instruction.*)
+
 let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     (succ: int) (i: instr) : (int * int) res =
   match i with
@@ -67,7 +67,7 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     let (cmp, next) = (next, next+1) in
     cfg_node_of_einstr next cfg cmp i >>= fun (nthen, next) ->
     Hashtbl.replace cfg cmp (Ccmp(c, nthen, succ)); OK (cmp, next + 1)
-  | Elang.Iblock il ->
+  | Elang.Iblock il ->  (
       if (List.is_empty il) 
         then 
           (Hashtbl.replace cfg next (Cnop succ); 
@@ -77,9 +77,11 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
             acc >>= fun (succ, next) ->
             cfg_node_of_einstr next cfg succ i
           ) il (OK (succ, next))
+  )
   | Elang.Ireturn e ->
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Creturn e); OK (next, next + 1)
+
   | Elang.Iprint e ->
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Cprint (e,succ));
@@ -94,6 +96,7 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
       List.fold_left f_fold (OK []) argms >>= fun cfg_args -> 
         Hashtbl.replace cfg next (Ccall (fname, cfg_args, succ));
         OK (next, next+1)
+        
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The
    [reachable_nodes n cfg] constructs the set of node identifiers that are

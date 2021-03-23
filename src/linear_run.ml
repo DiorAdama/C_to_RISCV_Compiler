@@ -47,6 +47,7 @@ let rec exec_linear_instr oc lp fname f st (i: rtl_instr) =
       OK (None, st)
     | _ -> Error (Printf.sprintf "Mov on undefined register (%s)" (print_reg rs))
     end
+(*
   | Rprint r ->
     begin match Hashtbl.find_option st.regs r with
       | Some s ->
@@ -54,6 +55,7 @@ let rec exec_linear_instr oc lp fname f st (i: rtl_instr) =
         OK (None, st)
       | _ -> Error (Printf.sprintf "Print on undefined register (%s)" (print_reg r))
     end
+*)
   | Rret r ->
     begin match Hashtbl.find_option st.regs r with
       | Some s -> OK (Some s, st)
@@ -61,7 +63,40 @@ let rec exec_linear_instr oc lp fname f st (i: rtl_instr) =
     end
   | Rlabel n -> OK (None, st)
 
-  | Rcall _ -> Error "Linear run Rcall not implemented yet"
+  | Rcall (ret, "print", reg_args) -> (
+    let f_fold arg_val_list reg_argi = 
+      arg_val_list >>= fun arg_val_list -> 
+        begin match Hashtbl.find_option st.regs reg_argi with
+        | Some s -> OK (arg_val_list @ [s])
+        | _ -> Error (Printf.sprintf "function %s called on an undefined register %s" "print" (print_reg reg_argi))
+        end
+    in
+    List.fold_left f_fold (OK []) reg_args >>= fun argval_list -> 
+    do_builtin oc st.mem "print" argval_list >>= fun ans -> 
+    OK (None, st)
+)
+
+  | Rcall (ret, fname, reg_args) -> (
+    let f_fold arg_val_list reg_argi = 
+      arg_val_list >>= fun arg_val_list -> 
+        begin match Hashtbl.find_option st.regs reg_argi with
+        | Some s -> OK (arg_val_list @ [s])
+        | _ -> Error (Printf.sprintf "function %s called on an undefined register %s" fname (print_reg reg_argi))
+        end
+    in
+    List.fold_left f_fold (OK []) reg_args >>= fun argval_list -> 
+      find_function lp fname >>= fun func_def ->
+      exec_linear_fun oc lp st fname func_def argval_list >>= fun (ans, st) -> (
+        match ret, ans with 
+          | None, None -> OK (None, st)
+          | Some rd, Some i -> 
+              Hashtbl.replace st.regs rd i;
+              OK (None, st)
+          | _ -> Error (Printf.sprintf "Expected a return value from function %s" fname)
+      )     
+  )
+  | _ -> Error "Unrecognized RTL instruction"
+
 
 and exec_linear_instr_at oc lp fname ({  linearfunbody;  } as f) st i =
   let l = List.drop_while (fun x -> x <> Rlabel i) linearfunbody in

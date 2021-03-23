@@ -47,7 +47,7 @@ and eval_cfginstr oc st ht (n: int) cp: (int * int state) res =
               eval_cfgexpr e st cp oc >>= fun (i, st) ->
               Hashtbl.replace st.env v i;
               eval_cfginstr oc st ht succ cp
-          | Ccmp(cond, i1, i2) ->
+          | Ccmp(cond, i1, i2) -> 
               eval_cfgexpr cond st cp oc >>= fun (i,st) ->
               if i = 0 
                 then eval_cfginstr oc st ht i2 cp

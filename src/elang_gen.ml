@@ -86,9 +86,8 @@ let string_of_varexpr = function
   | _ -> Error "The given expression is not a variable"
 
 let rec make_einstr_of_ast (a: tree) : instr res =
-  let res = 
+  let res = (
     match a with
-
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) -> (
           make_eexpr_of_ast e1 >>= string_of_varexpr >>= fun ex1 ->   
           make_eexpr_of_ast e2 >>= fun ex2 ->  
@@ -100,16 +99,18 @@ let rec make_einstr_of_ast (a: tree) : instr res =
               make_einstr_of_ast instr2 >>= fun i2 ->
                 OK (Iif (ex, i1, i2))
       )
-      | Node (Tif, [expr; instr1]) ->(
+      | Node (Tif, [expr; instr1]) ->( 
         make_eexpr_of_ast expr >>= fun ex ->
-          make_einstr_of_ast instr1 >>= fun i1 ->
-              OK (Iif (ex, i1, Iblock []))
-    )
+          make_einstr_of_ast instr1 >>= fun i1 -> 
+            OK (Iif (ex, i1, Iblock []))
+      )
+    
       | Node (Twhile, [expr; instr]) ->(
           make_eexpr_of_ast expr >>= fun ex ->
             make_einstr_of_ast instr >>= fun i ->
               OK (Iwhile (ex, i))
       )
+      
       | Node (Tblock, instrs) ->( 
           let f_fold a instri = 
             make_einstr_of_ast instri >>= fun i ->
@@ -139,12 +140,14 @@ let rec make_einstr_of_ast (a: tree) : instr res =
 
       | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"
                       (string_of_ast a))
+  )
   in
   match res with
   | OK o -> res
   | Error msg -> Error (Format.sprintf "In make_einstr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
 
+                          
 let make_ident (a: tree) : string res =
   match a with
   | Node (Targ, [s]) ->

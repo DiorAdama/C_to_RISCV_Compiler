@@ -36,7 +36,7 @@ let nop_transitions (cfgfunbody: (int, cfg_node) Hashtbl.t) : (int * int) list =
 let rec follow (n: int) (l: (int * int) list) (visited: int Set.t) : int = 
    let visited = Set.add n visited in 
    match List.assoc_opt n l with 
-      | Some k when Set.mem k visited -> failwith "caught in a loop of NOP nodes :(" 
+      | Some k when Set.mem k visited -> (*failwith "caught in a loop of NOP nodes :("*) n 
       | Some node_key -> follow node_key l visited 
       | None -> n 
 
@@ -69,7 +69,7 @@ let replace_succs nop_succs (n: cfg_node) =
       | Creturn ex -> n
       | Cprint (ex, neighb) -> Cprint (ex, replace_succ nop_succs neighb)
       | Ccmp (ex, neighb1, neighb2) -> Ccmp (ex, replace_succ nop_succs neighb1, replace_succ nop_succs neighb2)
-      | Cnop neighb -> failwith "There are still NOP nodes here :("
+      | Cnop neighb -> (*failwith "There are still NOP nodes here :("*) Cnop neighb
       | Ccall (fname, fargs, neighb) -> Ccall (fname, fargs, replace_succ nop_succs neighb)
       
 
