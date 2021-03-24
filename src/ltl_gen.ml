@@ -10,6 +10,7 @@ open Linear_liveness
 open Report
 open Options
 
+
 (* list of registers used to store arguments. [a0-a7] *)
 let arg_registers =
   range ~start:starting_arg_register 8
@@ -283,26 +284,32 @@ let ltl_instrs_of_linear_instr fname live_out allocation
   let res =
   match ins with
   | Rbinop (b, rd, rs1, rs2) ->
-    load_loc reg_tmp1 allocation rs1 >>= fun (l1, r1) ->
-    load_loc reg_tmp2 allocation rs2 >>= fun (l2, r2) ->
-    store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
-    OK (l1 @ l2 @ LBinop(b, rd, r1, r2) :: ld)
+      load_loc reg_tmp1 allocation rs1 >>= fun (l1, r1) ->
+      load_loc reg_tmp2 allocation rs2 >>= fun (l2, r2) ->
+      store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
+      OK (l1 @ l2 @ LBinop(b, rd, r1, r2) :: ld)
+
   | Runop (u, rd, rs) ->
-    load_loc reg_tmp1 allocation rs >>= fun (l1,r1) ->
-    store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
-    OK (l1 @ LUnop(u, rd, r1) :: ld)
+      load_loc reg_tmp1 allocation rs >>= fun (l1,r1) ->
+      store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
+      OK (l1 @ LUnop(u, rd, r1) :: ld)
+
   | Rconst (rd, i) ->
-    store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
-    OK (LConst(rd, i)::ld)
+      store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
+      OK (LConst(rd, i)::ld)
+
   | Rbranch (cmp, rs1, rs2, s1) ->
-    load_loc reg_tmp1 allocation rs1 >>= fun (l1, r1) ->
-    load_loc reg_tmp2 allocation rs2 >>= fun (l2, r2) ->
-    OK (l1 @ l2 @ [LBranch(cmp, r1, r2, Format.sprintf "%s_%d" fname s1)])
+      load_loc reg_tmp1 allocation rs1 >>= fun (l1, r1) ->
+      load_loc reg_tmp2 allocation rs2 >>= fun (l2, r2) ->
+      OK (l1 @ l2 @ [LBranch(cmp, r1, r2, Format.sprintf "%s_%d" fname s1)])
+
   | Rjmp s -> OK [LJmp (Format.sprintf "%s_%d" fname s)]
+
   | Rmov (rd, rs) ->
-    load_loc reg_tmp1 allocation rs >>= fun (ls, rs) ->
-    store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
-    OK (ls @ LMov(rd, rs) :: ld)
+      load_loc reg_tmp1 allocation rs >>= fun (ls, rs) ->
+      store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
+      OK (ls @ LMov(rd, rs) :: ld)
+
   | Rprint r ->
     let (save_a_regs, arg_saved, ofs) =
       save_caller_save
@@ -322,10 +329,39 @@ let ltl_instrs_of_linear_instr fname live_out allocation
         LComment "Restoring a0-a7,t0-t6" :: restore_caller_save arg_saved)
 
   | Rret r ->
-    load_loc reg_tmp1 allocation r >>= fun (l,r) ->
-    OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
+      load_loc reg_tmp1 allocation r >>= fun (l,r) ->
+      OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
+
   | Rlabel l -> OK [LLabel (Format.sprintf "%s_%d" fname l)]
-  | Rcall _ -> Error "LTL not implemented yet"
+
+  | Rcall (rd, fname, fargs) ->( 
+      caller_save live_out allocation fargs >>= fun saved_regs ->
+        let (save_regs_instrs, arg_saved, ofs) = save_caller_save (Set.to_list saved_regs) (- (numspilled+1)) in
+          let reg_sp = reg_fp - ofs in 
+          pass_parameters fargs allocation arg_saved >>= fun (pass_parameter_instrs, npush) -> 
+            let call_instr = [LCall fname] in 
+            let stack_pop_instrs = [ LAddi(reg_sp, reg_sp, (Archi.wordsize ())*npush) ] in
+            let return_instrs, restore_instrs = (
+              match rd with 
+                | None -> OK [], restore_caller_save arg_saved
+                | Some rtl_reg -> (
+                    match Hashtbl.find_option allocation rtl_reg with 
+                      | None -> Error "", restore_caller_save arg_saved
+                      | Some (Stk rd_loc) -> OK (make_loc_mov (Stk rd_loc) (Reg reg_a0)), restore_caller_save arg_saved
+                      | Some (Reg rd_loc) -> 
+                          let arg_saved = List.remove_assoc rd_loc arg_saved  in
+                          OK (make_loc_mov (Stk rd_loc) (Reg reg_a0)), restore_caller_save arg_saved
+                ) 
+            ) in
+            return_instrs >>= fun return_instrs -> 
+            OK (   LComment "Saving caller registers" :: save_regs_instrs 
+                 @ LComment "Passing parameters to callee" :: pass_parameter_instrs 
+                 @ LComment "Function Call" :: call_instr 
+                 @ LComment "Popping the stack" :: stack_pop_instrs 
+                 @ LComment "Moving the return value to the right location" :: return_instrs 
+                 @ LComment "Restoring the Caller's registers" :: restore_instrs
+            )
+  )
   in
   res >>= fun l ->
   OK (LComment (Format.asprintf "#<span style=\"background: pink;\"><b>Linear instr</b>: %a #</span>" (Rtl_print.dump_rtl_instr fname (None, None)) ins)::l)
