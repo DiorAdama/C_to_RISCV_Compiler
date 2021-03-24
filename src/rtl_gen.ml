@@ -53,7 +53,7 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
             (next_reg, l, next_reg + 1, var2reg)
 
       | Eunop (unar, ex) ->
-          let r, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e in
+          let r, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) ex in
             let instr = Runop (unar, next_reg, r) in 
               (next_reg, l @ [instr], next_reg+1, var2reg)   
               
