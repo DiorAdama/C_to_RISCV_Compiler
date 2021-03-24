@@ -309,8 +309,8 @@ let ltl_instrs_of_linear_instr fname live_out allocation
       load_loc reg_tmp1 allocation rs >>= fun (ls, rs) ->
       store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
       OK (ls @ LMov(rd, rs) :: ld)
-
-  | Rprint r ->
+(*
+  | Rcall (rd, "print", [r]) ->
     let (save_a_regs, arg_saved, ofs) =
       save_caller_save
         (range 32)
@@ -327,7 +327,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation
         parameter_passing @
         LCall "print" ::
         LComment "Restoring a0-a7,t0-t6" :: restore_caller_save arg_saved)
-
+*)
   | Rret r ->
       load_loc reg_tmp1 allocation r >>= fun (l,r) ->
       OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
@@ -336,32 +336,35 @@ let ltl_instrs_of_linear_instr fname live_out allocation
 
   | Rcall (rd, fname, fargs) ->( 
       caller_save live_out allocation fargs >>= fun saved_regs ->
-        let (save_regs_instrs, arg_saved, ofs) = save_caller_save (Set.to_list saved_regs) (- (numspilled+1)) in
-          let reg_sp = reg_fp - ofs in 
+        let (save_regs_instrs, arg_saved, ofs) = save_caller_save (Set.to_list saved_regs) (-numspilled-1) in
+          let stack_alloc_instr = [LAddi(reg_sp, reg_fp, (Archi.wordsize ())*ofs)] in
           pass_parameters fargs allocation arg_saved >>= fun (pass_parameter_instrs, npush) -> 
             let call_instr = [LCall fname] in 
-            let stack_pop_instrs = [ LAddi(reg_sp, reg_sp, (Archi.wordsize ())*npush) ] in
+            let stack_pop_callee_instr = [LAddi(reg_sp, reg_sp, (Archi.wordsize ())*npush)] in
             let return_instrs, restore_instrs = (
               match rd with 
                 | None -> OK [], restore_caller_save arg_saved
                 | Some rtl_reg -> (
                     match Hashtbl.find_option allocation rtl_reg with 
-                      | None -> Error "", restore_caller_save arg_saved
-                      | Some (Stk rd_loc) -> OK (make_loc_mov (Stk rd_loc) (Reg reg_a0)), restore_caller_save arg_saved
+                      | None -> Error "Can't find location of return address", restore_caller_save arg_saved
+                      | Some (Stk rd_loc) -> OK (make_loc_mov (Reg reg_a0) (Stk rd_loc)), restore_caller_save arg_saved
                       | Some (Reg rd_loc) -> 
                           let arg_saved = List.remove_assoc rd_loc arg_saved  in
-                          OK (make_loc_mov (Stk rd_loc) (Reg reg_a0)), restore_caller_save arg_saved
+                          OK (make_loc_mov (Reg reg_a0) (Reg rd_loc)), restore_caller_save arg_saved
                 ) 
             ) in
+            (*let stack_pop_caller_instr = [LAddi(reg_sp, reg_sp, (Archi.wordsize ())*(-ofs))] in*)
             return_instrs >>= fun return_instrs -> 
             OK (   LComment "Saving caller registers" :: save_regs_instrs 
+                 @ LComment "Updating stack pointer" :: stack_alloc_instr
                  @ LComment "Passing parameters to callee" :: pass_parameter_instrs 
                  @ LComment "Function Call" :: call_instr 
-                 @ LComment "Popping the stack" :: stack_pop_instrs 
+                 @ LComment "Popping the stack" :: stack_pop_callee_instr 
                  @ LComment "Moving the return value to the right location" :: return_instrs 
                  @ LComment "Restoring the Caller's registers" :: restore_instrs
             )
   )
+  | _ -> Error "Could not recognize Linear Instruction"
   in
   res >>= fun l ->
   OK (LComment (Format.asprintf "#<span style=\"background: pink;\"><b>Linear instr</b>: %a #</span>" (Rtl_print.dump_rtl_instr fname (None, None)) ins)::l)
