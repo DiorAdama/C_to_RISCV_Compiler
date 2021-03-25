@@ -35,6 +35,7 @@ let rec dump_eexpr = function
   | Eunop(u, e) -> Printf.sprintf "(%s %s)" (dump_unop u) (dump_eexpr e)
   | Eint i -> Printf.sprintf "%d" i
   | Evar s -> Printf.sprintf "%s" s
+  | Echar c -> Printf.sprintf "%c" c
 
 let indent_size = 2
 let spaces n =
@@ -78,7 +79,7 @@ let dump_einstr oc i = dump_einstr_rec 0 oc i
 let dump_efun oc funname {funargs; funbody} =
   Format.fprintf oc "%s(%s) {\n%a\n}\n"
     funname
-    (String.concat "," funargs)
+    (String.concat "," (List.map (fun (var, t) -> (string_of_typ t) ^ " " ^ var ) funargs))
     dump_einstr funbody
 
 let dump_eprog oc = dump_prog dump_efun oc

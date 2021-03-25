@@ -36,6 +36,7 @@ let eval_unop (u: unop) : int -> int =
 let rec eval_eexpr (e : expr) st (ep : eprog) oc: (int * int state) res =
    match e with 
       | Eint i -> OK (i, st)
+      | Echar c -> Error "elang run not implemented yet"
       | Evar name -> (
          match Hashtbl.find_option st.env name with 
             | None -> Error ("Unknown variable " ^ name) 
