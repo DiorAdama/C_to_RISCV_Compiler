@@ -24,7 +24,7 @@ open BatPrintf
 *)
 
 type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
-         | Tint
+         | Tint | Tchar | Tvoid
          | Tadd | Tmul | Tdiv | Tmod | Txor | Tsub
          | Tclt | Tcgt | Tcle | Tcge | Tceq | Tne
          | Tneg
@@ -76,6 +76,8 @@ let string_of_tag = function
   | Targ -> "Targ"
   | Tcall -> "Tcall"
   | Targs -> "Targs"
+  | Tchar -> "Tchar"
+  | Tvoid -> "Tvoid"
 
 
 (* Écrit un fichier .dot qui correspond à un AST *)
