@@ -36,7 +36,11 @@ let eval_unop (u: unop) : int -> int =
 let rec eval_eexpr (e : expr) st (ep : eprog) oc: (int * int state) res =
    match e with 
       | Eint i -> OK (i, st)
-      | Evar name -> OK (Hashtbl.find st.env name, st)
+      | Evar name -> (
+         match Hashtbl.find_option st.env name with 
+            | None -> Error ("Unknown variable " ^ name) 
+            | Some i -> OK (i, st)
+      )
       | Eunop (unary, x) ->(
          eval_eexpr x st ep oc >>= fun (x, st) ->
          OK (eval_unop unary x , st)
