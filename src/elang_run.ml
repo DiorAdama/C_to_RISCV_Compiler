@@ -138,7 +138,7 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc :
 
    Cette fonction renvoie un couple (ret, st') avec la même signification que
    pour [eval_einstr]. *)
-and eval_efun (st: int state) ({ funargs; funbody}: efun)
+and eval_efun (st: int state) ({ funargs; funbody; funvartyp; funrettyp}: efun)
     (fname: string) (vargs: int list) (ep : eprog) oc
   : (int option * int state) res =
   (* L'environnement d'une fonction (mapping des variables locales vers leurs
@@ -148,7 +148,7 @@ and eval_efun (st: int state) ({ funargs; funbody}: efun)
      seulement ses arguments), puis on restore l'environnement de l'appelant. *)
   let env_save = Hashtbl.copy st.env in
   let env = Hashtbl.create 17 in
-  match List.iter2 (fun a v -> Hashtbl.replace env a v) funargs vargs with
+  match List.iter2 (fun a v -> Hashtbl.replace env (fst a) v) funargs vargs with
   | () ->
     eval_einstr funbody { st with env = env } ep oc >>= fun (v, st') ->
     OK (v, { st' with env = env_save })

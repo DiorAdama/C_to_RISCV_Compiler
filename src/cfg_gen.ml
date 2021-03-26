@@ -23,6 +23,7 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
     cfg_expr_of_eexpr e >>= fun ee ->
     OK (Eunop (u, ee))
   | Elang.Eint i -> OK (Eint i)
+  | Elang.Echar c -> Error "CFG not implemented yet"
   | Elang.Evar v ->
     OK (Evar v)
 
@@ -117,14 +118,15 @@ let rec reachable_nodes n (cfg: (int,cfg_node) Hashtbl.t) =
   in reachable_aux n Set.empty
 
 (* [cfg_fun_of_efun f] builds the CFG for E function [f]. *)
-let cfg_fun_of_efun { funargs; funbody } =
+let cfg_fun_of_efun { funargs; funbody;funvartyp; funrettyp } =
   let cfg = Hashtbl.create 17 in
   Hashtbl.replace cfg 0 (Creturn (Eint 0));
   cfg_node_of_einstr 1 cfg 0 funbody >>= fun (node, _) ->
   (* remove unreachable nodes *)
   let r = reachable_nodes node cfg in
   Hashtbl.filteri_inplace (fun k _ -> Set.mem k r) cfg;
-  OK { cfgfunargs = funargs;
+  let arg_names = List.map (fun (key, v) -> key) funargs in
+  OK { cfgfunargs = arg_names;
        cfgfunbody = cfg;
        cfgentry = node;
      }
