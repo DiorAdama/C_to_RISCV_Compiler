@@ -49,11 +49,11 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
     | Echar _ -> OK Tchar
     | Evar var -> (
         match Hashtbl.find_option var_typ var with
-          | None -> Error "Variable type unfound"
+          | None -> Error "elang_gen.type_expr: Variable type unfound"
           | Some t -> OK t
     )
     | Ecall (fname, _) -> 
-        option_to_res_bind (Hashtbl.find_option fun_typ fname) "Variable type unfound" (fun t -> OK (snd t))
+        option_to_res_bind (Hashtbl.find_option fun_typ fname) "elang_gen.type_expr: Variable type unfound" (fun t -> OK (snd t))
     | Eunop (_, child_expr) 
     | Ebinop (_, child_expr, _) -> type_expr child_expr var_typ fun_typ 
 
@@ -134,10 +134,10 @@ let same_typ e1 e2 var_typ fun_typ =
     Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
 
 let init_var (var: string) (t : typ) var_typ = 
-  if Hashtbl.mem var_typ var 
+  if Hashtbl.find_option var_typ var = Some Tvoid 
+    then Error "Variable of type void can not be initialized" 
+  else if Hashtbl.mem var_typ var 
     then Error ("variable " ^ var ^ " already defined") 
-  else if Hashtbl.find var_typ var = Tvoid 
-    then Error ("Variable of type void can not be initialized") 
   else(
     Hashtbl.add var_typ var t;
     OK (Evar var)
@@ -244,8 +244,14 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
   | Node (Tfundef, [Node (f_ret_typ, [StringLeaf fname]); Node (Tfunargs, fargs); Node (Tfunbody, [fblock])]) ->
       let var_typ = Hashtbl.create 21 in
       list_map_res make_ident fargs >>= fun fargs ->
+
+        (*adding the inputs of the function to var_typ*)
+        List.iter (fun (k, v) -> Hashtbl.replace var_typ k v) fargs;
+
+        (*adding the current function to fun_typ*)
         let arg_types = List.map (fun (key, v) -> v) fargs in
         Hashtbl.replace fun_typ fname (arg_types, (typ_of_tag f_ret_typ));
+
         make_einstr_of_ast fblock var_typ fun_typ >>= fun fblock ->
           OK (fname, {
             funargs= fargs;
