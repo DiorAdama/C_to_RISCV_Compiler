@@ -23,7 +23,7 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
     cfg_expr_of_eexpr e >>= fun ee ->
     OK (Eunop (u, ee))
   | Elang.Eint i -> OK (Eint i)
-  | Elang.Echar c -> Error "CFG not implemented yet"
+  | Elang.Echar c -> OK (Eint (Char.code c))
   | Elang.Evar v ->
     OK (Evar v)
 

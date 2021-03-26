@@ -36,7 +36,7 @@ let eval_unop (u: unop) : int -> int =
 let rec eval_eexpr (e : expr) st (ep : eprog) oc: (int * int state) res =
    match e with 
       | Eint i -> OK (i, st)
-      | Echar c -> Error "elang run not implemented yet"
+      | Echar c -> OK (Char.code c, st)
       | Evar name -> (
          match Hashtbl.find_option st.env name with 
             | None -> Error ("Unknown variable " ^ name) 
@@ -125,7 +125,12 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc :
         (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
          do_builtin oc st.mem "print" arguments >>= fun ans -> 
             OK (ans, st)
-            
+
+      | Icall ("print_char", [arg]) -> 
+         eval_eexpr arg st ep oc >>= fun (ans, st) -> 
+         do_builtin oc st.mem "print_char" [ans] >>= fun ans -> 
+            OK (ans, st)
+      
       | Icall (fname, argms) ->
          eval_eexpr (Ecall (fname, argms)) st ep oc >>= fun (ans, new_st) ->
             OK (None, new_st)

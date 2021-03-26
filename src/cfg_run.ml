@@ -71,6 +71,11 @@ and eval_cfginstr oc st ht (n: int) cp: (int * int state) res =
               (List.fold_left f_fold (OK ([],st) ) pargs) >>= fun (arguments, st) ->
               do_builtin oc st.mem "print" arguments >>= fun ans -> 
                 eval_cfginstr oc st ht succ cp
+
+          | Ccall ("print_char", [c], succ) -> 
+              eval_cfgexpr c st cp oc >>= fun (c, st) ->
+              do_builtin oc st.mem "print_char" [c]  >>= fun ans -> 
+                eval_cfginstr oc st ht succ cp
                 
           | Ccall (fname, fargs, succ) -> 
               eval_cfgexpr (Ecall (fname, fargs)) st cp oc >>= fun (ans, st) ->

@@ -94,6 +94,14 @@ let rec exec_rtl_instr oc rp rtlfunname f st (i: rtl_instr) =
       OK (None, st)
   )
 
+  | Rcall (ret, "print_char", [reg_arg]) -> (
+    match Hashtbl.find_option st.regs reg_arg with
+    | Some s -> 
+        do_builtin oc st.mem "print" [s] >>= fun ans -> 
+        OK (None, st)
+    | None -> Error (Printf.sprintf "function %s called on an undefined register %s" "print_char" (print_reg reg_arg))
+  )
+
   | Rcall (ret, fname, reg_args) -> (
       let f_fold arg_val_list reg_argi = 
         arg_val_list >>= fun arg_val_list -> 

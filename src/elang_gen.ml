@@ -58,6 +58,14 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
     | Ebinop (_, child_expr, _) -> type_expr child_expr var_typ fun_typ 
 
 
+let same_typ e1 e2 var_typ fun_typ = 
+  type_expr e1 var_typ fun_typ >>= fun t1 -> 
+    type_expr e2 var_typ fun_typ >>= fun t2 ->
+  if (t1 = t2) || (t1=Tint && t2=Tchar) || (t1=Tchar && t2=Tint) 
+    then OK true
+  else
+    Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
+
 
 (* [make_eexpr_of_ast a] builds an expression corresponding to a tree [a]. If
    the tree is not well-formed, fails with an [Error] message. *)
@@ -76,13 +84,9 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
       | Node(t, [e1; e2]) when tag_is_binop t ->(
           make_eexpr_of_ast e1 var_typ fun_typ >>= fun ex1 -> 
           make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 ->
-            type_expr ex1 var_typ fun_typ >>= fun t1 -> 
-            type_expr ex2 var_typ fun_typ >>= fun t2 ->
-              if t1 = t2 then 
-                OK (Ebinop (binop_of_tag t, ex1, ex2))
-              else
-                Error "Operands in binary operation don't have the same data type"    
-)
+            same_typ ex1 ex2 var_typ fun_typ >>= fun b -> 
+              OK (Ebinop (binop_of_tag t, ex1, ex2)))
+              
       | Node (Tneg, [e]) ->(
           make_eexpr_of_ast e var_typ fun_typ>>= fun ex -> 
             OK (Eunop (Eneg, ex))
@@ -125,13 +129,6 @@ let string_of_varexpr = function
   | Evar s -> OK s
   | _ -> Error "The given expression is not a variable"
 
-let same_typ e1 e2 var_typ fun_typ = 
-  type_expr e1 var_typ fun_typ >>= fun t1 -> 
-    type_expr e2 var_typ fun_typ >>= fun t2 ->
-  if (t1 = t2) || (t1=Tint && t2=Tchar) || (t1=Tchar && t2=Tint) 
-    then OK true
-  else
-    Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
 
 let init_var (var: string) (t : typ) var_typ = 
   if Hashtbl.find_option var_typ var = Some Tvoid 
