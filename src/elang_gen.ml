@@ -152,16 +152,28 @@ let typ_of_tag = function
   | Ast.Tvoid -> Prog.Tvoid
   | _ -> assert false
 
+let init_expr_of_tag = function 
+  | Ast.Tint -> Eint 0
+  | Ast.Tchar -> Echar '0'
+  | Ast.Tvoid -> Eint 0
+  | _ -> assert false
+
 let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (string, typ list * typ) Hashtbl.t) 
 : instr res =
 
   let res = (
     match a with
+
+      | Node (ttag, [StringLeaf s]) when (tag_is_typ ttag) -> 
+          init_var s (typ_of_tag ttag) var_typ >>= fun _ ->
+          OK (Iassign (s, init_expr_of_tag ttag)) 
+      
+
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) ->( 
         make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 -> 
           match e1 with 
-            | Node(tag, [StringLeaf s1]) when (tag_is_typ tag) -> 
-                init_var s1 (typ_of_tag tag) var_typ >>= fun var1 -> 
+            | Node(ttag, [StringLeaf s1]) when (tag_is_typ ttag) -> 
+                init_var s1 (typ_of_tag ttag) var_typ >>= fun var1 -> 
                   same_typ var1 ex2 var_typ fun_typ >>= fun b -> 
                     OK (Iassign (s1, ex2))
             
