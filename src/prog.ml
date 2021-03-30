@@ -74,8 +74,17 @@ let get_val env v =
   Hashtbl.find_option env v
 
 let find_function (ep: 'a prog) fname : 'a res =
+  let f_fold ans (k, Gfun v) = 
+    if k = fname 
+      then OK v 
+    else 
+      ans
+  in
+  List.fold f_fold (Error (Format.sprintf "Unknown function %s\n" fname)) ep
+  
+(*
   match List.assoc_opt fname ep with
   | Some (Gfun f) -> OK f
   | _ -> Error (Format.sprintf "Unknown function %s\n" fname)
-
+*)
   

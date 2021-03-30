@@ -13,7 +13,7 @@ non-terminals ADD_EXPRS ADD_EXPR
 non-terminals MUL_EXPRS MUL_EXPR
 non-terminals CMP_EXPRS CMP_EXPR
 non-terminals EQ_EXPRS EQ_EXPR
-non-terminals FUNC_DEF DATA_DEF REST_IDENTIFIER_ASSIGN
+non-terminals FUNC_DEF DATA_DEF REST_IDENTIFIER_ASSIGN FUN_DEF_OR_DEC
 non-terminals CHARACTER
 axiom S
 {
@@ -59,8 +59,11 @@ FUNC_DEF -> SYM_VOID IDENTIFIER {Node (Tvoid, [$2])}
 FUNDEFS -> FUNDEF FUNDEFS   { $1::$2 }
 FUNDEFS -> { [] }
 
-FUNDEF -> FUNC_DEF SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS INSTR   
-          { Node (Tfundef, [$1] @ [Node (Tfunargs, $3)] @ [Node (Tfunbody, [$5])] ) }
+FUNDEF -> FUNC_DEF SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS FUN_DEF_OR_DEC   
+          { Node (Tfundef, [$1] @ [Node (Tfunargs, $3)] @ [Node (Tfunbody, $5)] ) }
+
+FUN_DEF_OR_DEC -> INSTR {[$1]}
+FUN_DEF_OR_DEC -> SYM_SEMICOLON {[]}
 
 LPARAMS -> DATA_DEF REST_PARAMS  { Node(Targ, [$1])::$2 }
 LPARAMS -> SYM_VOID {[Node (Tvoid, [NullLeaf])]}

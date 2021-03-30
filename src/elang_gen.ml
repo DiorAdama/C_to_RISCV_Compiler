@@ -164,10 +164,12 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
   let res = (
     match a with
 
-      | Node (ttag, [StringLeaf s]) when (tag_is_typ ttag) -> 
+      | Node (ttag, [StringLeaf s]) when (tag_is_typ ttag) -> (
           init_var s (typ_of_tag ttag) var_typ >>= fun _ ->
-          OK (Iassign (s, init_expr_of_tag ttag)) 
-      
+          match ttag with 
+            | Tvoid -> OK (Iblock [])
+            | _ ->  OK (Iassign (s, init_expr_of_tag ttag)) 
+      )
 
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) ->( 
         make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 -> 
@@ -268,6 +270,24 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
             funvartyp = var_typ; 
             funrettyp = (typ_of_tag f_ret_typ);
           })
+
+  | Node (Tfundef, [Node (f_ret_typ, [StringLeaf fname]); Node (Tfunargs, fargs); Node(Tfunbody, [])]) ->
+      let var_typ = Hashtbl.create 21 in
+      list_map_res make_ident fargs >>= fun fargs ->
+
+      (*adding the inputs of the function to var_typ*)
+      List.iter (fun (k, v) -> Hashtbl.replace var_typ k v) fargs;
+
+        (*adding the current function to fun_typ*)
+        let arg_types = List.map (fun (key, v) -> v) fargs in
+        Hashtbl.replace fun_typ fname (arg_types, (typ_of_tag f_ret_typ));
+          OK (fname, {
+            funargs= fargs;
+            funbody= (Iblock []);
+            funvartyp = var_typ; 
+            funrettyp = (typ_of_tag f_ret_typ);
+          })
+
   | _ ->
     Error (Printf.sprintf "make_fundef_of_ast: Expected a Tfundef, got %s."
              (string_of_ast a))
