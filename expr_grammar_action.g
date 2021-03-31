@@ -4,6 +4,7 @@ tokens SYM_ASSIGN SYM_SEMICOLON SYM_RETURN SYM_IF SYM_WHILE SYM_ELSE SYM_COMMA
 tokens SYM_EQUALITY SYM_NOTEQ SYM_LT SYM_LEQ SYM_GT SYM_GEQ 
 tokens SYM_VOID SYM_INT SYM_CHAR
 tokens SYM_CHARACTER<char>
+tokens SYM_AMPERSAND 
 non-terminals S INSTR INSTRS LINSTRS ELSE EXPR FACTOR REST_IDENTIFIER_INSTR REST_IDENTIFIER_EXPR
 non-terminals LPARAMS REST_PARAMS
 non-terminals IDENTIFIER INTEGER
@@ -14,7 +15,8 @@ non-terminals MUL_EXPRS MUL_EXPR
 non-terminals CMP_EXPRS CMP_EXPR
 non-terminals EQ_EXPRS EQ_EXPR
 non-terminals FUNC_DEF DATA_DEF REST_IDENTIFIER_ASSIGN FUN_DEF_OR_DEC
-non-terminals CHARACTER
+non-terminals CHARACTER 
+non-terminals REST_TYPE
 axiom S
 {
 
@@ -35,11 +37,16 @@ axiom S
     List.fold_left f_fold term other
 
 
-  let resolve_identifier ident subtree  = 
+  let resolve_identifier ident subtree = 
     match subtree with 
       | NullLeaf -> ident 
       | Node (Targs, argums) -> Node (Tcall, [ident; subtree]) 
       | _ -> Node (Tassign, [Node (Tassignvar, [ident; subtree])])
+
+  let resolve_ptr data_type ident = 
+    match ident with 
+      | (true, ide) -> Node(data_type, [ide]) 
+      | (false, ide) -> Node(Tptr, [Node(data_type, [ide])])
 
 }
 
@@ -50,8 +57,12 @@ IDENTIFIER -> SYM_IDENTIFIER    { StringLeaf($1) }
 INTEGER -> SYM_INTEGER     { IntLeaf($1) }
 CHARACTER -> SYM_CHARACTER {CharLeaf($1)}
 
-DATA_DEF -> SYM_INT IDENTIFIER {Node(Tint, [$2])}
-DATA_DEF -> SYM_CHAR IDENTIFIER {Node(Tchar, [$2])}
+
+DATA_DEF -> SYM_INT REST_TYPE { resolve_ptr Tint $2 }
+DATA_DEF -> SYM_CHAR REST_TYPE { resolve_ptr Tchar $2 }
+
+REST_TYPE -> IDENTIFIER {(true, $1)}
+REST_TYPE -> SYM_ASTERISK IDENTIFIER {(false, $2)}
 
 FUNC_DEF -> DATA_DEF {$1}
 FUNC_DEF -> SYM_VOID IDENTIFIER {Node (Tvoid, [$2])}
@@ -115,6 +126,8 @@ MUL_EXPR -> FACTOR { $1 }
 
 FACTOR -> INTEGER {$1}
 FACTOR -> IDENTIFIER REST_IDENTIFIER_EXPR { resolve_identifier $1 $2 }
+FACTOR -> SYM_AMPERSAND IDENTIFIER { Node(Tampersand, [$2]) }
+FACTOR -> SYM_ASTERISK IDENTIFIER  {Node(Tmul, [$2])}
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS   {$2}
 
 REST_IDENTIFIER_EXPR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 

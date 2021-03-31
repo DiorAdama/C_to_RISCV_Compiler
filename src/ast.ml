@@ -25,6 +25,7 @@ open BatPrintf
 
 type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
          | Tint | Tchar | Tvoid
+         | Tptr 
          | Tadd | Tmul | Tdiv | Tmod | Txor | Tsub
          | Tclt | Tcgt | Tcle | Tcge | Tceq | Tne
          | Tneg
@@ -32,6 +33,7 @@ type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
          | Tfundef | Tfunname | Tfunargs | Tfunbody | Tcall | Targs
          | Tassignvar
          | Targ 
+         | Tampersand
 
 type tree = | Node of tag * tree list
             | StringLeaf of string
@@ -78,6 +80,8 @@ let string_of_tag = function
   | Targs -> "Targs"
   | Tchar -> "Tchar"
   | Tvoid -> "Tvoid"
+  | Tptr -> "Tptr"
+  | Tampersand -> "Tampersand"
 
 
 (* Écrit un fichier .dot qui correspond à un AST *)

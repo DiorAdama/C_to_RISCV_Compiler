@@ -5,11 +5,13 @@ type typ =
   | Tint 
   | Tchar 
   | Tvoid
+  | Tptr of typ
 
-let string_of_typ = function 
+let rec string_of_typ = function 
   | Tint -> "int"
   | Tchar -> "char"
   | Tvoid -> "void"
+  | Tptr ty -> "ptr "^(string_of_typ ty)
  
 type mem_access_size =
   | MAS1
