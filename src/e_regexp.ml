@@ -79,6 +79,7 @@ let list_regexp : (regexp * (string -> token option)) list =
     (char_regexp '+',       fun s -> Some (SYM_PLUS));
     (char_regexp '-',       fun s -> Some (SYM_MINUS));
     (char_regexp '*',       fun s -> Some (SYM_ASTERISK));
+    (char_regexp '&',       fun s -> Some (SYM_AMPERSAND));
     (char_regexp '/',       fun s -> Some (SYM_DIV));
     (char_regexp '%',       fun s -> Some (SYM_MOD));
     (char_regexp '[',       fun s -> Some (SYM_LBRACKET));
