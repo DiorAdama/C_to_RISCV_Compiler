@@ -43,10 +43,13 @@ axiom S
       | Node (Targs, argums) -> Node (Tcall, [ident; subtree]) 
       | _ -> Node (Tassign, [Node (Tassignvar, [ident; subtree])])
 
-  let resolve_ptr data_type ident = 
+  let rec resolve_ptr data_type ident b = 
     match ident with 
-      | (true, ide) -> Node(data_type, [ide]) 
-      | (false, ide) -> Node(Tptr, [Node(data_type, [ide])])
+      | [StringLeaf s] when b -> Node(data_type, ident) 
+      | [StringLeaf s] when not b -> StringLeaf s
+      | Node(Tptr, [])::tl when b -> Node(Tptr, [resolve_ptr data_type tl b])
+      | Node(Tptr, [])::tl when not b -> Node(Tvalueat, [resolve_ptr data_type tl b])
+      | _ -> assert false
 
 }
 
@@ -58,11 +61,11 @@ INTEGER -> SYM_INTEGER     { IntLeaf($1) }
 CHARACTER -> SYM_CHARACTER {CharLeaf($1)}
 
 
-DATA_DEF -> SYM_INT REST_TYPE { resolve_ptr Tint $2 }
-DATA_DEF -> SYM_CHAR REST_TYPE { resolve_ptr Tchar $2 }
+DATA_DEF -> SYM_INT REST_TYPE { resolve_ptr Tint $2 true}
+DATA_DEF -> SYM_CHAR REST_TYPE { resolve_ptr Tchar $2 true}
 
-REST_TYPE -> IDENTIFIER {(true, $1)}
-REST_TYPE -> SYM_ASTERISK IDENTIFIER {(false, $2)}
+REST_TYPE -> IDENTIFIER {[$1]}
+REST_TYPE -> SYM_ASTERISK REST_TYPE {Node(Tptr, [])::$2}
 
 FUNC_DEF -> DATA_DEF {$1}
 FUNC_DEF -> SYM_VOID IDENTIFIER {Node (Tvoid, [$2])}
@@ -95,6 +98,8 @@ INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {Node (Twhile, (
 INSTR -> SYM_RETURN EXPR SYM_SEMICOLON  { Node (Treturn, [$2]) }
 INSTR -> IDENTIFIER REST_IDENTIFIER_INSTR SYM_SEMICOLON { resolve_identifier $1 $2 }
 INSTR -> DATA_DEF REST_IDENTIFIER_ASSIGN SYM_SEMICOLON {resolve_identifier $1 $2}
+INSTR -> SYM_ASTERISK REST_TYPE SYM_ASSIGN EXPR SYM_SEMICOLON 
+          { Node(Tassign, [Node(Tassignvar, [Node(Tvalueat, [resolve_ptr Tvoid $2 false]); $4])])} 
 INSTR -> SYM_VOID IDENTIFIER SYM_SEMICOLON {Node(Tvoid, [$2])}
 INSTR -> LINSTRS { $1 }
 
@@ -126,8 +131,8 @@ MUL_EXPR -> FACTOR { $1 }
 
 FACTOR -> INTEGER {$1}
 FACTOR -> IDENTIFIER REST_IDENTIFIER_EXPR { resolve_identifier $1 $2 }
-FACTOR -> SYM_AMPERSAND IDENTIFIER { Node(Tampersand, [$2]) }
-FACTOR -> SYM_ASTERISK IDENTIFIER  {Node(Tmul, [$2])}
+FACTOR -> SYM_AMPERSAND IDENTIFIER { Node(Taddrof, [$2]) }
+FACTOR -> SYM_ASTERISK IDENTIFIER  {Node(Tvalueat, [$2])}
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS   {$2}
 
 REST_IDENTIFIER_EXPR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 

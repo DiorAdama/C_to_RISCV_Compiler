@@ -146,7 +146,7 @@ let tag_is_typ = function
   | Ast.Tvoid -> true
   | _ -> false
 
-let typ_of_tag = function 
+let rec typ_of_tag = function 
   | Ast.Tint -> Prog.Tint
   | Ast.Tchar -> Prog.Tchar 
   | Ast.Tvoid -> Prog.Tvoid
@@ -245,7 +245,7 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
                           
 let make_ident (a: tree) : (string* Prog.typ) res =
   match a with
-  | Node (Targ, [Node (t, [s])]) ->
+  | Node (Targ, [Node (t, [s])]) when t <> Tptr->
       OK ( string_of_stringleaf s, typ_of_tag t)
   | a -> Error (Printf.sprintf "make_ident: unexpected AST: %s"
                   (string_of_ast a))
