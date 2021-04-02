@@ -54,11 +54,20 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
     )
     | Ecall (fname, _) -> 
         option_to_res_bind (Hashtbl.find_option fun_typ fname) "elang_gen.type_expr: Variable type unfound" (fun t -> OK (snd t))
-    | Eunop (_, child_expr) 
-    | Ebinop (_, child_expr, _) -> type_expr child_expr var_typ fun_typ 
+    | Eunop (_, child_expr) -> type_expr child_expr1 var_typ fun_typ
+    | Ebinop (_, child_expr1, child_expr2) -> (
+        type_expr child_expr1 var_typ fun_typ >>= fun typ1 -> 
+          type_expr child_expr2 var_typ fun_typ >>= fun typ2 ->
+            match typ1, typ2 with 
+              | Tptr _ , _ -> typ1 
+              | _ , Tptr _ -> typ2 
+              | _ -> typ1 
+    )
+    | Eaddrof ex -> type_expr ex var_typ fun_typ >>= fun ex_t -> Tptr ex_t
+    | Eload (Tptr ex) -> type_expr ex var_typ fun_typ
 
 
-let same_typ e1 e2 var_typ fun_typ = 
+let comp_typ e1 e2 var_typ fun_typ = 
   type_expr e1 var_typ fun_typ >>= fun t1 -> 
     type_expr e2 var_typ fun_typ >>= fun t2 ->
   if (t1 = t2) || (t1=Tint && t2=Tchar) || (t1=Tchar && t2=Tint) 
@@ -84,7 +93,7 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
       | Node(t, [e1; e2]) when tag_is_binop t ->(
           make_eexpr_of_ast e1 var_typ fun_typ >>= fun ex1 -> 
           make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 ->
-            same_typ ex1 ex2 var_typ fun_typ >>= fun b -> 
+            comp_typ ex1 ex2 var_typ fun_typ >>= fun b -> 
               OK (Ebinop (binop_of_tag t, ex1, ex2)))
               
       | Node (Tneg, [e]) ->(
@@ -130,6 +139,27 @@ let string_of_varexpr = function
   | _ -> Error "The given expression is not a variable"
 
 
+let rec typ_of_tag = function 
+  | Ast.Tint -> Prog.Tint
+  | Ast.Tchar -> Prog.Tchar 
+  | Ast.Tvoid -> Prog.Tvoid
+  | _ -> assert false
+
+let tag_is_typ = function 
+  | Ast.Tint -> true
+  | Ast.Tchar -> true
+  | Ast.Tvoid -> true
+  | _ -> false
+
+let rec make_typ_of_ast (a : Ast.tree) = 
+  match a with 
+    | Node(ttag, [StringLeaf s]) when tag_is_typ ttag -> OK (s, typ_of_tag ttag)
+    | Node(Tptr, [tl]) -> 
+        make_typ_of_ast tl >>= fun (s, t) ->
+          OK (s, Tptr t)
+    | _ -> Error " elang_gen.make_typ_of_ast: Could not recognize variable type from ast"
+
+
 let init_var (var: string) (t : typ) var_typ = 
   if Hashtbl.find_option var_typ var = Some Tvoid 
     then Error "Variable of type void can not be initialized" 
@@ -140,17 +170,7 @@ let init_var (var: string) (t : typ) var_typ =
     OK (Evar var)
   ) 
 
-let tag_is_typ = function 
-  | Ast.Tint -> true
-  | Ast.Tchar -> true
-  | Ast.Tvoid -> true
-  | _ -> false
 
-let rec typ_of_tag = function 
-  | Ast.Tint -> Prog.Tint
-  | Ast.Tchar -> Prog.Tchar 
-  | Ast.Tvoid -> Prog.Tvoid
-  | _ -> assert false
 
 let init_expr_of_tag = function 
   | Ast.Tint -> Eint 0
@@ -176,13 +196,13 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
           match e1 with 
             | Node(ttag, [StringLeaf s1]) when (tag_is_typ ttag) -> 
                 init_var s1 (typ_of_tag ttag) var_typ >>= fun var1 -> 
-                  same_typ var1 ex2 var_typ fun_typ >>= fun b -> 
+                  comp_typ var1 ex2 var_typ fun_typ >>= fun b -> 
                     OK (Iassign (s1, ex2))
             
             | _ ->  
               make_eexpr_of_ast e1 var_typ fun_typ >>= fun ex1 ->
               make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 -> 
-                same_typ ex1 ex2 var_typ fun_typ >>= fun b -> 
+                comp_typ ex1 ex2 var_typ fun_typ >>= fun b -> 
                   string_of_varexpr ex1 >>= fun s1 -> 
                     OK (Iassign (s1, ex2))
       )
