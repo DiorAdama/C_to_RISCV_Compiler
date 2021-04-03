@@ -11,7 +11,13 @@ let rec string_of_typ = function
   | Tint -> "int"
   | Tchar -> "char"
   | Tvoid -> "void"
-  | Tptr ty -> "ptr "^(string_of_typ ty)
+  | Tptr ty -> (string_of_typ ty) ^ "*"
+
+let size_of_type = function 
+  | Tint -> OK 8
+  | Tchar -> OK 1
+  | Tptr _ -> OK 8
+  | Tvoid -> Error "Void variable does not have a size"
  
 type mem_access_size =
   | MAS1

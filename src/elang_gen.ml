@@ -46,34 +46,50 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
   
   match e with 
     | Eint _ -> OK Tint
+
     | Echar _ -> OK Tchar
+
     | Evar var -> (
         match Hashtbl.find_option var_typ var with
           | None -> Error "elang_gen.type_expr: Variable type unfound"
           | Some t -> OK t
     )
+
     | Ecall (fname, _) -> 
         option_to_res_bind (Hashtbl.find_option fun_typ fname) "elang_gen.type_expr: Variable type unfound" (fun t -> OK (snd t))
-    | Eunop (_, child_expr) -> type_expr child_expr1 var_typ fun_typ
+
+    | Eunop (_, child_expr) -> type_expr child_expr var_typ fun_typ
+
     | Ebinop (_, child_expr1, child_expr2) -> (
         type_expr child_expr1 var_typ fun_typ >>= fun typ1 -> 
-          type_expr child_expr2 var_typ fun_typ >>= fun typ2 ->
+          type_expr child_expr2 var_typ fun_typ >>= fun typ2 -> 
             match typ1, typ2 with 
-              | Tptr _ , _ -> typ1 
-              | _ , Tptr _ -> typ2 
-              | _ -> typ1 
+              | Tptr _ , _ -> OK typ1 
+              | _ , Tptr _ -> OK typ2 
+              | _ -> OK typ1 
     )
-    | Eaddrof ex -> type_expr ex var_typ fun_typ >>= fun ex_t -> Tptr ex_t
-    | Eload (Tptr ex) -> type_expr ex var_typ fun_typ
+    | Eaddrof ex -> type_expr ex var_typ fun_typ >>= fun ex_t -> OK (Tptr ex_t)
+
+    | Eload ex -> type_expr ex var_typ fun_typ >>= fun ex_t -> 
+        match ex_t with 
+          | Tptr t -> OK t 
+          | _ -> Error "elang_gen.type_expr: Can not load value from non pointer variable"
+
 
 
 let comp_typ e1 e2 var_typ fun_typ = 
+  let int_comp = [Tint; Tchar] in
   type_expr e1 var_typ fun_typ >>= fun t1 -> 
-    type_expr e2 var_typ fun_typ >>= fun t2 ->
-  if (t1 = t2) || (t1=Tint && t2=Tchar) || (t1=Tchar && t2=Tint) 
-    then OK true
-  else
-    Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
+    type_expr e2 var_typ fun_typ >>= fun t2 ->(
+      match t1, t2 with 
+        | t1, t2 when t1 = t2 -> OK true
+        | t1, t2 when (List.mem t1 int_comp && List.mem t2 int_comp) -> OK true 
+        | Tptr _, t when List.mem t int_comp  -> OK true
+        | t, Tptr _ when List.mem t int_comp -> OK true
+        | _ -> Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
+    )
+      
+        
 
 
 (* [make_eexpr_of_ast a] builds an expression corresponding to a tree [a]. If
@@ -90,17 +106,31 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
       | StringLeaf s -> 
           type_expr (Evar s) var_typ fun_typ  >>= fun t -> OK (Evar s) 
 
-      | Node(t, [e1; e2]) when tag_is_binop t ->(
+      | Node(t, [e1; e2]) when tag_is_binop t ->( 
           make_eexpr_of_ast e1 var_typ fun_typ >>= fun ex1 -> 
-          make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 ->
+          make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 -> 
             comp_typ ex1 ex2 var_typ fun_typ >>= fun b -> 
-              OK (Ebinop (binop_of_tag t, ex1, ex2)))
+              OK (Ebinop (binop_of_tag t, ex1, ex2))) 
               
-      | Node (Tneg, [e]) ->(
-          make_eexpr_of_ast e var_typ fun_typ>>= fun ex -> 
-            OK (Eunop (Eneg, ex))
+      | Node (Tneg, [e]) ->( 
+          make_eexpr_of_ast e var_typ fun_typ >>= fun ex -> 
+            OK (Eunop (Eneg, ex)) 
       )
 
+      | Node(Taddrof, [StringLeaf s]) -> (
+          make_eexpr_of_ast (StringLeaf s) var_typ fun_typ >>= fun ex -> 
+            OK (Eaddrof ex)
+      )
+
+      | Node(Tvalueat, [e]) -> (
+          make_eexpr_of_ast e var_typ fun_typ >>= fun ex ->( 
+            type_expr ex var_typ fun_typ >>= fun ex_t -> 
+              match ex_t with  
+                | Tptr _ -> OK (Eload ex)
+                | _ -> Error "elang_gen.make_eexpr_of_ast: Can not load value from non pointer variable"
+            )
+      )
+      
       | Node (Tcall, [(StringLeaf fname); Node(Targs, argmts)]) ->(
         let f_fold argms ast_node = (
           argms >>= fun argums ->
@@ -149,11 +179,12 @@ let tag_is_typ = function
   | Ast.Tint -> true
   | Ast.Tchar -> true
   | Ast.Tvoid -> true
+  | Ast.Tptr -> true
   | _ -> false
 
 let rec make_typ_of_ast (a : Ast.tree) = 
   match a with 
-    | Node(ttag, [StringLeaf s]) when tag_is_typ ttag -> OK (s, typ_of_tag ttag)
+    | Node(ttag, [StringLeaf s]) when (tag_is_typ ttag && ttag <> Ast.Tptr) -> OK (s, typ_of_tag ttag)
     | Node(Tptr, [tl]) -> 
         make_typ_of_ast tl >>= fun (s, t) ->
           OK (s, Tptr t)
@@ -176,6 +207,7 @@ let init_expr_of_tag = function
   | Ast.Tint -> Eint 0
   | Ast.Tchar -> Echar '0'
   | Ast.Tvoid -> Eint 0
+  | Ast.Tptr -> Eint 0
   | _ -> assert false
 
 let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (string, typ list * typ) Hashtbl.t) 
@@ -184,8 +216,9 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
   let res = (
     match a with
 
-      | Node (ttag, [StringLeaf s]) when (tag_is_typ ttag) -> (
-          init_var s (typ_of_tag ttag) var_typ >>= fun _ ->
+      | Node (ttag, [_]) when (tag_is_typ ttag) -> (
+          make_typ_of_ast a >>= fun (s, typ_s) -> 
+          init_var s typ_s var_typ >>= fun _ ->
           match ttag with 
             | Tvoid -> OK (Iblock [])
             | _ ->  OK (Iassign (s, init_expr_of_tag ttag)) 
@@ -194,17 +227,19 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) ->( 
         make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 -> 
           match e1 with 
-            | Node(ttag, [StringLeaf s1]) when (tag_is_typ ttag) -> 
-                init_var s1 (typ_of_tag ttag) var_typ >>= fun var1 -> 
+            | Node(ttag, [_]) when (tag_is_typ ttag) -> 
+                make_typ_of_ast e1 >>= fun (s1, typ_s1) -> 
+                init_var s1 typ_s1 var_typ >>= fun var1 -> 
                   comp_typ var1 ex2 var_typ fun_typ >>= fun b -> 
                     OK (Iassign (s1, ex2))
             
             | _ ->  
               make_eexpr_of_ast e1 var_typ fun_typ >>= fun ex1 ->
               make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 -> 
-                comp_typ ex1 ex2 var_typ fun_typ >>= fun b -> 
-                  string_of_varexpr ex1 >>= fun s1 -> 
-                    OK (Iassign (s1, ex2))
+                comp_typ ex1 ex2 var_typ fun_typ >>= fun b ->
+                  match ex1 with 
+                    | Eload _ -> OK (Istore (ex1, ex2))
+                    | _ -> string_of_varexpr ex1 >>= fun s1 -> OK (Iassign (s1, ex2))
       )
 
       | Node (Tif, [expr; instr1; instr2]) ->(
@@ -265,8 +300,9 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
                           
 let make_ident (a: tree) : (string* Prog.typ) res =
   match a with
-  | Node (Targ, [Node (t, [s])]) when t <> Tptr->
-      OK ( string_of_stringleaf s, typ_of_tag t)
+  | Node (Targ, [ast_decl] )->
+      make_typ_of_ast ast_decl >>= fun (s, typ_s) ->
+      OK ( s, typ_s)
   | a -> Error (Printf.sprintf "make_ident: unexpected AST: %s"
                   (string_of_ast a))
 
@@ -274,6 +310,7 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
   match a with
   | Node (Tfundef, [Node (f_ret_typ, [StringLeaf fname]); Node (Tfunargs, fargs); Node (Tfunbody, [fblock])]) ->
       let var_typ = Hashtbl.create 21 in
+      let funvarmem = Hashtbl.create 5 in
       list_map_res make_ident fargs >>= fun fargs ->
 
         (*adding the inputs of the function to var_typ*)
@@ -289,10 +326,13 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
             funbody= fblock;
             funvartyp = var_typ; 
             funrettyp = (typ_of_tag f_ret_typ);
+            funvarinmem = funvarmem;
+            funstksz = 0;
           })
 
   | Node (Tfundef, [Node (f_ret_typ, [StringLeaf fname]); Node (Tfunargs, fargs); Node(Tfunbody, [])]) ->
       let var_typ = Hashtbl.create 21 in
+      let funvarmem = Hashtbl.create 5 in
       list_map_res make_ident fargs >>= fun fargs ->
 
       (*adding the inputs of the function to var_typ*)
@@ -306,6 +346,8 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
             funbody= (Iblock []);
             funvartyp = var_typ; 
             funrettyp = (typ_of_tag f_ret_typ);
+            funvarinmem = funvarmem;
+            funstksz = 0;
           })
 
   | _ ->

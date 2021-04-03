@@ -36,6 +36,9 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
       List.fold_left f_fold (OK []) fargs >>= fun cfg_args -> 
         OK (Ecall (fname, cfg_args))
 
+  | Elang.Eaddrof _ -> Error "cfg not implemented yet"
+  | Elang.Eload _ -> Error "cfg not implemented yet"
+
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
    to the E instruction [i].
 
@@ -97,6 +100,8 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
       List.fold_left f_fold (OK []) argms >>= fun cfg_args -> 
         Hashtbl.replace cfg next (Ccall (fname, cfg_args, succ));
         OK (next, next+1)
+
+  | Elang.Istore _ -> Error "cfg not implemented yet"
         
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The

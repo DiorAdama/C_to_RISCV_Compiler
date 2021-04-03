@@ -62,6 +62,9 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc: (int * int state) res =
             eval_efun st func_def fname arguments ep oc >>= fun (ans, st) -> 
                option_to_res_bind ans  ("Error in elang_run.eval_eexpr Ecall " ^ fname) (fun ans -> OK (ans, st))
 
+      | Eaddrof _ -> Error "elang_run not implemented yet"
+      | Eload _ -> Error "elang_run not implemented yet"
+
          
 
 (* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].
