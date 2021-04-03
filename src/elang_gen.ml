@@ -298,6 +298,39 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
                           (string_of_ast a) msg)
 
                           
+
+let rec addr_taken_expr (e: expr): (string Set.t) = 
+  match e with 
+    | Eunop (_, ex) -> addr_taken_expr ex
+    | Ebinop (_, ex1, ex2) -> Set.union (addr_taken_expr ex1) (addr_taken_expr ex2)
+    | Ecall (_, ex_list) -> 
+        List.fold_left (fun ans exi -> 
+          Set.union ans (addr_taken_expr exi)
+        ) Set.empty ex_list
+    | Eload ex -> addr_taken_expr ex
+    | Eaddrof (Evar s) -> Set.singleton s
+    | _ -> Set.empty
+
+
+let rec addr_taken_instr (i: instr) : (string Set.t) = 
+  match i with 
+    | Iassign (_, ex)
+    | Iif (ex, _, _)
+    | Iwhile (ex, _)
+    | Ireturn ex -> addr_taken_expr ex 
+
+    | Istore (ex1, ex2) -> Set.union (addr_taken_expr ex1) (addr_taken_expr ex2)
+
+    | Icall (fname, ex_list) -> addr_taken_expr (Ecall (fname, ex_list))
+
+    | Iblock instr_list -> 
+        List.fold_left (fun ans instr_i -> 
+          Set.union ans (addr_taken_instr instr_i)
+        ) Set.empty instr_list
+    
+    | _ -> Set.empty
+
+
 let make_ident (a: tree) : (string* Prog.typ) res =
   match a with
   | Node (Targ, [ast_decl] )->
@@ -307,45 +340,56 @@ let make_ident (a: tree) : (string* Prog.typ) res =
                   (string_of_ast a))
 
 let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t ): (string * efun) res =
+  let var_typ = Hashtbl.create 21 in
+  let funvarmem = Hashtbl.create 5 in
   match a with
-  | Node (Tfundef, [Node (f_ret_typ, [StringLeaf fname]); Node (Tfunargs, fargs); Node (Tfunbody, [fblock])]) ->
-      let var_typ = Hashtbl.create 21 in
-      let funvarmem = Hashtbl.create 5 in
+  | Node (Tfundef, [ast_fun_decl; Node (Tfunargs, fargs); Node (Tfunbody, [fblock])]) ->
+      
       list_map_res make_ident fargs >>= fun fargs ->
 
         (*adding the inputs of the function to var_typ*)
         List.iter (fun (k, v) -> Hashtbl.replace var_typ k v) fargs;
 
+        make_typ_of_ast ast_fun_decl >>= fun (fname, f_ret_type) ->
         (*adding the current function to fun_typ*)
         let arg_types = List.map (fun (key, v) -> v) fargs in
-        Hashtbl.replace fun_typ fname (arg_types, (typ_of_tag f_ret_typ));
+        Hashtbl.replace fun_typ fname (arg_types, f_ret_type);
 
         make_einstr_of_ast fblock var_typ fun_typ >>= fun fblock ->
+
+        let stk_vars = addr_taken_instr fblock in 
+        Set.fold (fun var_i sz -> 
+          sz >>= fun sz ->
+          Hashtbl.replace funvarmem var_i sz; 
+          match Hashtbl.find_option var_typ var_i with 
+            | Some t -> size_of_type t >>= fun sz_t -> OK (sz+sz_t)
+            | None -> Error "@elang_gen.make_fundef_of_ast: variable not found in var_typ"
+        ) stk_vars (OK 0) >>= fun sz ->
+
           OK (fname, {
             funargs= fargs;
             funbody= fblock;
             funvartyp = var_typ; 
-            funrettyp = (typ_of_tag f_ret_typ);
+            funrettyp = f_ret_type;
             funvarinmem = funvarmem;
-            funstksz = 0;
+            funstksz = sz;
           })
 
-  | Node (Tfundef, [Node (f_ret_typ, [StringLeaf fname]); Node (Tfunargs, fargs); Node(Tfunbody, [])]) ->
-      let var_typ = Hashtbl.create 21 in
-      let funvarmem = Hashtbl.create 5 in
+  | Node (Tfundef, [ast_fun_decl; Node (Tfunargs, fargs); Node(Tfunbody, [])]) ->
+
       list_map_res make_ident fargs >>= fun fargs ->
 
       (*adding the inputs of the function to var_typ*)
       List.iter (fun (k, v) -> Hashtbl.replace var_typ k v) fargs;
-
+        make_typ_of_ast ast_fun_decl >>= fun (fname, f_ret_type) ->
         (*adding the current function to fun_typ*)
         let arg_types = List.map (fun (key, v) -> v) fargs in
-        Hashtbl.replace fun_typ fname (arg_types, (typ_of_tag f_ret_typ));
+        Hashtbl.replace fun_typ fname (arg_types, f_ret_type);
           OK (fname, {
             funargs= fargs;
             funbody= (Iblock []);
             funvartyp = var_typ; 
-            funrettyp = (typ_of_tag f_ret_typ);
+            funrettyp = f_ret_type;
             funvarinmem = funvarmem;
             funstksz = 0;
           })
