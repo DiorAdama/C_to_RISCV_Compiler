@@ -77,7 +77,7 @@ let rec dump_einstr_rec indent oc i =
 
   |Istore (ex1, ex2) ->
     print_spaces oc indent;
-    Format.fprintf oc "%s = %s;\n" (dump_eexpr ex1) (dump_eexpr ex2)
+    Format.fprintf oc "*%s = %s;\n" (dump_eexpr ex1) (dump_eexpr ex2)
 
 let dump_einstr oc i = dump_einstr_rec 0 oc i
 

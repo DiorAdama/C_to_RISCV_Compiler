@@ -46,10 +46,10 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int)
             | Some i -> OK (i, st)
             | None -> (
                match Hashtbl.find_option cur_fun.funvarinmem name with 
-                  | Some addr -> 
+                  | Some offs -> 
                         type_expr e cur_fun.funvartyp fun_typ >>= fun t ->
                         size_of_type t >>= fun sz_t ->
-                        Mem.read_bytes_as_int st.mem addr sz_t >>= fun ans -> OK (ans, st)
+                        Mem.read_bytes_as_int st.mem (sp+offs) sz_t >>= fun ans -> OK (ans, st)
                   | None -> Error ("Unknown variable " ^ name) 
             )
       )
@@ -58,9 +58,19 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int)
          OK (eval_unop unary x , st)
       )  
       | Ebinop (binary, x, y) ->(
-         eval_eexpr x st ep oc sp cur_fun fun_typ >>= fun (x, st) ->
+         type_expr x cur_fun.funvartyp fun_typ >>= fun x_t -> 
+         type_expr y cur_fun.funvartyp fun_typ >>= fun y_t ->
+            eval_eexpr x st ep oc sp cur_fun fun_typ >>= fun (x, st) ->
             eval_eexpr y st ep oc sp cur_fun fun_typ >>= fun (y, st) ->
-               OK (eval_binop binary x y, st)
+               match x_t, y_t with 
+                  | Tptr ty, int_t when List.mem int_t [Tint; Tchar] -> 
+                        size_of_type ty >>= fun sz_ty ->
+                        OK (eval_binop binary x (y*sz_ty), st)
+                  | int_t, Tptr ty when List.mem int_t [Tint; Tchar] -> 
+                        size_of_type ty >>= fun sz_ty ->
+                        OK (eval_binop binary (x*sz_ty) y, st)
+                           
+                  | _, _ ->  OK (eval_binop binary x y, st)
       )
       | Ecall (fname, argms) -> 
          let f_fold argums expri = (
@@ -78,7 +88,7 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int)
                | Evar var_name -> (
                      match Hashtbl.find_option cur_fun.funvarinmem var_name with 
                         | None -> Error "@elang_run.eval_eexpr: Variable not found"
-                        | Some offs -> OK (sp - offs, st)
+                        | Some offs -> OK (sp + offs, st)
                )
                | Eload ptr_expr -> 
                      eval_eexpr ptr_expr st ep oc sp cur_fun fun_typ 
@@ -120,11 +130,11 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc (sp: int)
             eval_eexpr eexpr st ep oc sp cur_fun fun_typ >>= fun (expr_val, st) ->(
             match Hashtbl.find_option cur_fun.funvarinmem var_name with 
                | None -> Hashtbl.replace st.env var_name expr_val; OK (None, st)
-               | Some addr ->
+               | Some offs ->
                      type_expr (Evar var_name) cur_fun.funvartyp fun_typ >>= fun t ->
                      size_of_type t >>= fun sz_t ->
                      let byte_list = split_bytes sz_t expr_val in 
-                     Mem.write_bytes st.mem addr byte_list >>= fun _ -> OK (None, st) 
+                     Mem.write_bytes st.mem (sp+offs) byte_list >>= fun _ -> OK (None, st) 
             )
       )
       | Iif (ex, i1, i2) ->(
@@ -173,10 +183,17 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc (sp: int)
          do_builtin oc st.mem "print_char" [ans] >>= fun ans -> 
             OK (ans, st)
       
-      | Icall (fname, argms) ->
-         eval_eexpr (Ecall (fname, argms)) st ep oc sp cur_fun fun_typ >>= fun (ans, new_st) ->
-            OK (None, new_st)
-
+      | Icall (fname, argms) ->(
+            let f_fold argums expri = (
+               argums >>= fun (argums, sti) ->
+               eval_eexpr expri sti ep oc sp cur_fun fun_typ >>= fun (ans_i, sti) -> 
+                 OK ((argums@[ans_i]), sti)
+             ) in
+             (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
+                 find_function ep fname >>= fun func_def ->
+                 eval_efun st func_def fname arguments ep oc sp fun_typ >>= fun (ans, st) -> 
+                  OK (None, st)
+      )
       | Istore (e1, e2) -> (
          eval_eexpr e2 st ep oc sp cur_fun fun_typ >>= fun (val2, st) ->
          type_expr e1 cur_fun.funvartyp fun_typ >>= fun t -> 
@@ -247,6 +264,6 @@ let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
   let n = List.length f.funargs in
   let params = take n params in
-  eval_efun st f "main" params ep oc 0 fun_typ >>= fun (v, st) ->
+  eval_efun st f "main" params ep oc memsize fun_typ >>= fun (v, st) ->
   OK v
 

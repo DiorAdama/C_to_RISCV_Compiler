@@ -238,7 +238,7 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
               make_eexpr_of_ast e2 var_typ fun_typ >>= fun ex2 -> 
                 comp_typ ex1 ex2 var_typ fun_typ >>= fun b ->
                   match ex1 with 
-                    | Eload _ -> OK (Istore (ex1, ex2))
+                    | Eload ptr -> OK (Istore (ptr, ex2))
                     | _ -> string_of_varexpr ex1 >>= fun s1 -> OK (Iassign (s1, ex2))
       )
 
