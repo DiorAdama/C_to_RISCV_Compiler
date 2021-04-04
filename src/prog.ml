@@ -14,7 +14,7 @@ let rec string_of_typ = function
   | Tptr ty -> (string_of_typ ty) ^ "*"
 
 let size_of_type = function 
-  | Tint -> OK 8
+  | Tint -> OK 4
   | Tchar -> OK 1
   | Tptr _ -> OK 8
   | Tvoid -> Error "Void variable does not have a size"

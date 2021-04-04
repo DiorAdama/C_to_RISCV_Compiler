@@ -117,8 +117,8 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
             OK (Eunop (Eneg, ex)) 
       )
 
-      | Node(Taddrof, [StringLeaf s]) -> (
-          make_eexpr_of_ast (StringLeaf s) var_typ fun_typ >>= fun ex -> 
+      | Node(Taddrof, [e]) -> (
+          make_eexpr_of_ast e var_typ fun_typ >>= fun ex -> 
             OK (Eaddrof ex)
       )
 
