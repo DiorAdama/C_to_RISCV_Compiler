@@ -28,7 +28,7 @@ let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
       | Cprint (e, i) -> Set.union (vars_in_expr e) live_after
       | Creturn e -> Set.union (vars_in_expr e) live_after
       | Ccmp (e, i1, i2) -> Set.union (vars_in_expr e) live_after
-      | Cstore (e1, e2,_,_) -> Set.union (vars_in_expr e2) (Set.union (vars_in_expr e1) live_after)
+      | Cstore (e1, e2,_,_) -> Set.union live_after (Set.union (vars_in_expr e1) (vars_in_expr e2))
       | Cassign (var, e, i) -> Set.union (vars_in_expr e) (Set.remove var live_after)
       | Cnop i -> live_after
       | Ccall (fname, fargs, i) -> Set.union live_after (vars_in_expr (Ecall (fname, fargs)))

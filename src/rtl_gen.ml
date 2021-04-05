@@ -73,8 +73,11 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
           let call_instr = Rcall (Some next_reg, fname, regs) in 
           (next_reg, instrs @ [call_instr], next_reg+1, var2reg)
 
-      | Estk _ -> (next_reg, [], next_reg, var2reg)
-      | Eload _ -> (next_reg, [], next_reg, var2reg)
+      | Estk offs -> (next_reg, [Rstk (next_reg, offs)], next_reg+1, var2reg)
+      | Eload (cfg_expr, sz) -> 
+          let r, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) cfg_expr in 
+          let load_instr = Rload (next_reg, r, sz) in
+          (next_reg, l @ [load_instr], next_reg+1, var2reg)
 
     
 
@@ -135,10 +138,15 @@ let rtl_instrs_of_cfg_node ((next_reg:int), (var2reg: (string*int) list)) (c: cf
           let jmp_instr = Rjmp succ in 
           ( l @ [jmp_instr], next_reg, var2reg )
 
-      | Cstore _ -> ([], next_reg, var2reg)
+      | Cstore (e1_cfg, e2_cfg, sz, succ) -> 
+          let rd, l1, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e1_cfg in
+          let rs, l2, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e2_cfg in
+          let store_instr = Rstore (rd, rs, sz) in
+          let jmp_instr = Rjmp succ in 
+          (l1 @ l2 @ [store_instr; jmp_instr], next_reg, var2reg)
     
 
-let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =
+let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry; cfgfunstksz }: cfg_fun) =
   let (rargs, next_reg, var2reg) =
     List.fold_left (fun (rargs, next_reg, var2reg) a ->
         let (r, next_reg, var2reg) = find_var (next_reg, var2reg) a in
@@ -157,6 +165,7 @@ let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_
     rtlfunentry = cfgentry;
     rtlfunbody;
     rtlfuninfo = var2reg;
+    rtlfunstksz = cfgfunstksz
   }
 
 let rtl_of_gdef funname = function
@@ -171,3 +180,4 @@ let pass_rtl_gen cfg =
   OK rtl
 
   
+

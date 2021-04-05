@@ -216,12 +216,15 @@ let written_rtl_regs_instr (i: rtl_instr) =
   | Rbinop (_, rd, _, _)
   | Runop (_, rd, _)
   | Rconst (rd, _)
+  | Rload (rd, _,_)
+  | Rstore (rd, _, _)
   | Rmov (rd, _) -> Set.singleton rd
   | Rprint _
   | Rret _
   | Rlabel _
   | Rbranch (_, _, _, _)
   | Rcall _
+  | Rstk _
   | Rjmp _ -> Set.empty
 
 let read_rtl_regs_instr (i: rtl_instr) =
@@ -232,9 +235,12 @@ let read_rtl_regs_instr (i: rtl_instr) =
   | Rprint rs
   | Runop (_, _, rs)
   | Rmov (_, rs)
+  | Rload (_, rs, _)
+  | Rstore (_, rs, _)
   | Rret rs -> Set.singleton rs
 
   | Rlabel _
+  | Rstk _
   | Rconst (_, _)
   | Rjmp _ -> Set.empty
   | Rcall _ -> Set.empty

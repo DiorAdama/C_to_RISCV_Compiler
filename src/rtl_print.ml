@@ -54,6 +54,10 @@ let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
         | None -> Format.fprintf oc "%s" fcallstring
         | Some reg -> Format.fprintf oc "r%d <- %s " reg fcallstring
     )
+  | Rstk (rd, offs) -> Format.fprintf oc "%s <- sp + %d" (print_reg rd) offs
+  | Rload (rd, rs, sz) -> Format.fprintf oc "%s <- stk[%s, %s+%d] " (print_reg rd) (print_reg rs) (print_reg rs) sz 
+  | Rstore (rd, rs, sz) -> Format.fprintf oc "stk[%s, %s+%d] <- %s" (print_reg rd) (print_reg rd) sz (print_reg rs) 
+
   end;
   Format.fprintf oc "\n";
   dump_liveness live_out "after"

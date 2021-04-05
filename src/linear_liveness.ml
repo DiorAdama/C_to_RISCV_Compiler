@@ -10,7 +10,10 @@ let gen_live (i: rtl_instr) =
   | Rbinop (b, rd, rs1, rs2) -> Set.of_list [rs1; rs2]
   | Rcall (r, fname, fargs) -> Set.of_list fargs
   | Rprint rs
+  | Rload (_, rs, _)
+  | Rstore (_, rs, _)
   | Runop (_, _, rs) -> Set.singleton rs
+  | Rstk _
   | Rconst (_, _) -> Set.empty
   | Rbranch (_, rs1, rs2, _) -> Set.of_list [rs1; rs2]
   | Rjmp _ -> Set.empty
@@ -23,10 +26,13 @@ let kill_live (i: rtl_instr) =
   | Rbinop (_, rd, _, _)
   | Runop (_, rd,_)
   | Rconst (rd, _)
+  | Rload (rd, _, _)
+  | Rstore (rd, _, _)
   | Rmov (rd,_) -> Set.singleton rd
   | Rbranch (_, _, _, _)
   | Rprint _
   | Rret _
+  | Rstk _
   | Rjmp _
   | Rlabel _ -> Set.empty
   | Rcall (r, fname, fargs) -> (

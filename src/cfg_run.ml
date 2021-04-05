@@ -85,8 +85,15 @@ and eval_cfginstr oc st ht (n: int) cp (sp: int): (int * int state) res=
                 eval_cfginstr oc st ht succ cp sp
                 
           | Ccall (fname, fargs, succ) -> 
-              eval_cfgexpr (Ecall (fname, fargs)) st cp oc sp >>= fun (ans, st) ->
-                eval_cfginstr oc st ht succ cp sp
+              let f_fold argums expri = (
+                argums >>= fun (argums, sti) ->
+                eval_cfgexpr expri sti cp oc sp >>= fun (ans_i, sti) -> 
+                  OK ((argums@[ans_i]), sti)
+              ) in
+              (List.fold_left f_fold (OK ([],st) ) fargs) >>= fun (arguments, st) ->
+                  find_function cp fname >>= fun func_def ->
+                  eval_cfgfun oc st fname func_def arguments cp sp >>= fun _ -> 
+                    eval_cfginstr oc st ht succ cp sp
 
           | Cstore (addr_expr, val_expr, sz, succ) -> 
               eval_cfgexpr addr_expr st cp oc sp >>= fun (addr, st) -> 
