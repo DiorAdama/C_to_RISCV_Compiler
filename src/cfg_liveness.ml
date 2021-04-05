@@ -11,11 +11,14 @@ let rec vars_in_expr (e: expr) =
    match e with
       | Evar s -> Set.singleton s
       | Ebinop (_, e1, e2) -> Set.union (vars_in_expr e1) (vars_in_expr e2)
+      | Eload (e1, _)
       | Eunop (_, e1) -> vars_in_expr e1
+      | Estk i
       | Eint i -> Set.empty
       | Ecall (fname, fargs) -> 
             let f_fold a expri = Set.union a (vars_in_expr expri) in 
             List.fold_left f_fold Set.empty fargs
+      
 
 (* [live_cfg_node node live_after] renvoie l'ensemble des variables vivantes
    avant un nœud [node], étant donné l'ensemble [live_after] des variables
@@ -25,6 +28,7 @@ let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
       | Cprint (e, i) -> Set.union (vars_in_expr e) live_after
       | Creturn e -> Set.union (vars_in_expr e) live_after
       | Ccmp (e, i1, i2) -> Set.union (vars_in_expr e) live_after
+      | Cstore (e1, e2,_,_) -> Set.union (vars_in_expr e2) (Set.union (vars_in_expr e1) live_after)
       | Cassign (var, e, i) -> Set.union (vars_in_expr e) (Set.remove var live_after)
       | Cnop i -> live_after
       | Ccall (fname, fargs, i) -> Set.union live_after (vars_in_expr (Ecall (fname, fargs)))

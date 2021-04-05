@@ -34,6 +34,9 @@ let rec eval_cfgexpr (e: expr) st cp oc : (int* int Prog.state) res =
             find_function cp fname >>= fun func_def ->
             eval_cfgfun oc st fname func_def arguments cp >>= fun (ans, st) -> 
               option_to_res_bind ans  ("Error in cfg_run.eval_cfgexpr Ecall " ^ fname) (fun ans -> OK (ans, st))
+      
+    | Estk _ -> Error "cfg_run not impl yet"
+    | Eload _ -> Error "cfg_run not impl yet"
 
 
 and eval_cfginstr oc st ht (n: int) cp: (int * int state) res =

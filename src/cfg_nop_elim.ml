@@ -71,6 +71,7 @@ let replace_succs nop_succs (n: cfg_node) =
       | Ccmp (ex, neighb1, neighb2) -> Ccmp (ex, replace_succ nop_succs neighb1, replace_succ nop_succs neighb2)
       | Cnop neighb -> failwith "There are still NOP nodes here :(" 
       | Ccall (fname, fargs, neighb) -> Ccall (fname, fargs, replace_succ nop_succs neighb)
+      | Cstore (e1, e2, sz, succ) -> Cstore (e1, e2, sz, replace_succ nop_succs succ)
       
 
 

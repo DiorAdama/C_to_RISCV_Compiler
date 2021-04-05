@@ -73,6 +73,9 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
           let call_instr = Rcall (Some next_reg, fname, regs) in 
           (next_reg, instrs @ [call_instr], next_reg+1, var2reg)
 
+      | Estk _ -> (next_reg, [], next_reg, var2reg)
+      | Eload _ -> (next_reg, [], next_reg, var2reg)
+
     
 
     
@@ -131,6 +134,8 @@ let rtl_instrs_of_cfg_node ((next_reg:int), (var2reg: (string*int) list)) (c: cf
           let (r, l, next_reg, var2reg) = rtl_instrs_of_cfg_expr (next_reg, var2reg) (Ecall (fname, cfg_expr_list)) in 
           let jmp_instr = Rjmp succ in 
           ( l @ [jmp_instr], next_reg, var2reg )
+
+      | Cstore _ -> ([], next_reg, var2reg)
     
 
 let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =
