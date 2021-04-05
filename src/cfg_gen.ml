@@ -44,7 +44,10 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
   | Elang.Evar v -> (
       match Hashtbl.find_option cur_efun.funvarinmem v with 
         | None -> OK (Evar v)
-        | Some offs -> OK (Estk offs)
+        | Some offs -> 
+            type_expr e cur_efun.funvartyp fun_typ >>= fun t ->
+            size_of_type t >>= fun sz_t ->
+            OK (Eload (Estk offs, sz_t))
   )
 
   | Elang.Ecall (fname, fargs) -> 
@@ -99,10 +102,19 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
 let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
     (succ: int) (i: instr) (cur_efun: efun) (fun_typ : (string, typ list * typ) Hashtbl.t): (int * int) res =
   match i with
-  | Elang.Iassign (v, e) ->
-      cfg_expr_of_eexpr e cur_efun fun_typ>>= fun e ->
-      Hashtbl.replace cfg next (Cassign(v,e,succ));
-      OK (next, next + 1)
+  | Elang.Iassign (v, e) ->(
+      cfg_expr_of_eexpr e cur_efun fun_typ>>= fun val_assign ->
+      (match Hashtbl.find_option cur_efun.funvarinmem v with 
+        | None -> 
+            Hashtbl.replace cfg next (Cassign(v, val_assign, succ));
+            OK (next, next + 1)
+        | Some offs -> 
+            type_expr (Evar v) cur_efun.funvartyp fun_typ >>= fun t -> 
+            size_of_type t >>= fun sz ->
+            Hashtbl.replace cfg next (Cstore(Estk offs, val_assign, sz, succ));
+            OK (next, next + 1)
+      )   
+  )
   | Elang.Iif (c, ithen, ielse) ->
       cfg_expr_of_eexpr c cur_efun fun_typ>>= fun c ->
       cfg_node_of_einstr next cfg succ ithen cur_efun fun_typ >>= fun (nthen, next) ->

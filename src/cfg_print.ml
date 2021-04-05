@@ -18,8 +18,8 @@ let rec dump_cfgexpr : expr -> string = function
               let ans = ans ^ (dump_cfgexpr (List.hd argms)) in 
               (List.fold_left (fun a argi -> a ^ "," ^ (dump_cfgexpr argi)) ans (List.tl argms))^")"
   )
-  | Estk i -> Format.sprintf "addr(sp + %d)" i
-  | Eload (e, i) -> Format.sprintf "stk[addr=%s, sz=%d]" (dump_cfgexpr e) i 
+  | Estk i -> Format.sprintf "addr(sp+%d)" i
+  | Eload (e, i) -> Format.sprintf "stk[%s, %d]" (dump_cfgexpr e) i 
 
 let dump_list_cfgexpr l =
   l |> List.map dump_cfgexpr |> String.concat ", "
@@ -47,7 +47,7 @@ let dump_cfg_node oc (node: cfg_node) =
   | Ccmp (e, _, _) -> Format.fprintf oc "%s" (dump_cfgexpr e)
   | Cnop _ -> Format.fprintf oc "nop"
   | Ccall (fname, argms, _) -> Format.fprintf oc "%s" (dump_cfgexpr (Ecall (fname, argms)))
-  | Cstore (addr, e, sz, _) -> Format.fprintf oc " stk[addr=%s, sz= %d] = %s " (dump_cfgexpr addr) sz (dump_cfgexpr e)
+  | Cstore (addr, e, sz, _) -> Format.fprintf oc " stk[%s,%d] = %s " (dump_cfgexpr addr) sz (dump_cfgexpr e)
 
 
 let dump_liveness_state oc ht state =
