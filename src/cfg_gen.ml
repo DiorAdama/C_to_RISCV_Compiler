@@ -206,10 +206,16 @@ let cfg_gdef_of_edef fun_typ gd =
     Gfun f -> cfg_fun_of_efun f fun_typ >>= fun f -> OK (Gfun f)
 
 let cfg_prog_of_eprog (ep: eprog) : cfg_fun prog res =
+  (*building funtyp*)
   let fun_typ = Hashtbl.create (List.length ep) in 
-      Hashtbl.replace fun_typ "print" ([Tint], Tvoid);
-      Hashtbl.replace fun_typ "print_int" ([Tint], Tvoid);
-      Hashtbl.replace fun_typ "print_char" ([Tchar], Tvoid);
+    Hashtbl.replace fun_typ "print" ([Tint], Tvoid);
+    Hashtbl.replace fun_typ "print_int" ([Tint], Tvoid);
+    Hashtbl.replace fun_typ "print_char" ([Tchar], Tvoid);
+  List.iter (fun (fname, Gfun ef) -> 
+    let arg_types = List.map (fun (key, v) -> v) ef.funargs in
+    Hashtbl.replace fun_typ fname (arg_types, ef.funrettyp);
+    ) ep ;
+
   assoc_map_res (fun fname -> cfg_gdef_of_edef fun_typ) ep
 
 let pass_cfg_gen ep =

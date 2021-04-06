@@ -353,13 +353,13 @@ let ltl_instrs_of_linear_instr fname live_out allocation
                 | None -> OK [], restore_caller_save arg_saved
                 | Some rtl_reg -> (
                     match Hashtbl.find_option allocation rtl_reg with 
-                      | None -> Error "Can't find location of return address", restore_caller_save arg_saved
+                      | None -> OK [], restore_caller_save arg_saved
                       | Some (Stk rd_loc) -> OK (make_loc_mov (Reg reg_a0) (Stk rd_loc)), restore_caller_save arg_saved
                       | Some (Reg rd_loc) -> 
                           let arg_saved = List.remove_assoc rd_loc arg_saved  in
                           OK (make_loc_mov (Reg reg_a0) (Reg rd_loc)), restore_caller_save arg_saved
                 ) 
-            ) in
+            ) in 
             (*let stack_pop_caller_instr = [LAddi(reg_sp, reg_sp, (Archi.wordsize ())*(-ofs))] in*)
             return_instrs >>= fun return_instrs -> 
             OK (   LComment "Saving caller registers" :: save_regs_instrs 
@@ -374,7 +374,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation
 
   | Rstk (rd, offs) -> (
       store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
-      OK (LAddi (rd, reg_sp, offs)::ld)
+      OK (LSubi (rd, reg_fp, numlocals - offs)::ld)
   )
 
   | Rload (rd, rs, sz) -> ( 
@@ -418,7 +418,7 @@ let retrieve_nth_arg n numcalleesave =
 let ltl_fun_of_linear_fun linprog
     (({ linearfunargs; linearfunbody; linearfuninfo; linearfunstksz }): linear_fun) fname
     (live_in,live_out) (allocation, numspilled) =
-  let numlocals = (linearfunstksz/Archi.wordsize()) in
+  let numlocals = (linearfunstksz/Archi.wordsize ()) in
   List.iteri (fun i pr ->
       Hashtbl.replace allocation pr (retrieve_nth_arg i 0)
     ) linearfunargs;
@@ -442,8 +442,8 @@ let ltl_fun_of_linear_fun linprog
   let prologue =
     List.concat (List.map make_push (Set.to_list callee_saved_regs)) @
     LMov (reg_fp, reg_sp) ::
-    make_sp_sub (numspilled * (Archi.wordsize ())) @
     make_sp_sub (numlocals * (Archi.wordsize())) @
+    make_sp_sub (numspilled * (Archi.wordsize ())) @
     [LComment "end prologue"] in
   let epilogue = LLabel epilogue_label ::
                  LMov(reg_sp, reg_fp) ::

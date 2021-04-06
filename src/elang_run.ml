@@ -261,6 +261,10 @@ let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
       Hashtbl.replace fun_typ "print" ([Tint], Tvoid);
       Hashtbl.replace fun_typ "print_int" ([Tint], Tvoid);
       Hashtbl.replace fun_typ "print_char" ([Tchar], Tvoid);
+   List.iter (fun (fname, Gfun ef) -> 
+      let arg_types = List.map (fun (key, v) -> v) ef.funargs in
+      Hashtbl.replace fun_typ fname (arg_types, ef.funrettyp);
+      ) ep ;
   find_function ep "main" >>= fun f ->
   (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
   let n = List.length f.funargs in

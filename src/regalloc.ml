@@ -38,6 +38,7 @@ let regs_in_instr_list (l: rtl_instr list) : reg Set.t =
     (fun acc i -> Set.union acc (regs_in_instr i))
     Set.empty l
 
+    
 let regalloc_on_stack_fun (f: linear_fun) : ((reg, loc) Hashtbl.t * int)=
   let allocation = Hashtbl.create 10 in
   let regs = regs_in_instr_list f.linearfunbody in

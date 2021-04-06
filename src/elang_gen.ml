@@ -51,12 +51,13 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
 
     | Evar var -> (
         match Hashtbl.find_option var_typ var with
-          | None -> Error "elang_gen.type_expr: Variable type unfound"
+          | None -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] unfound" (dump_eexpr e))
           | Some t -> OK t
     )
 
     | Ecall (fname, _) -> 
-        option_to_res_bind (Hashtbl.find_option fun_typ fname) "elang_gen.type_expr: Variable type unfound" (fun t -> OK (snd t))
+        option_to_res_bind (Hashtbl.find_option fun_typ fname) 
+        (Format.sprintf "elang_gen.type_expr: Type of expr[%s] unfound" (dump_eexpr e))  (fun t -> OK (snd t))
 
     | Eunop (_, child_expr) -> type_expr child_expr var_typ fun_typ
 
