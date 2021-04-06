@@ -64,7 +64,7 @@ let remove_useless_labels (l: rtl_instr list) =
   List.filter f_filter l
 
 let linear_of_rtl_fun
-    ({ rtlfunargs; rtlfunbody; rtlfunentry; rtlfuninfo }: rtl_fun) =
+    ({ rtlfunargs; rtlfunbody; rtlfunentry; rtlfuninfo; rtlfunstksz }: rtl_fun) =
   let block_order = sort_blocks rtlfunbody rtlfunentry in
   let linearinstrs =
     Rjmp rtlfunentry ::
@@ -77,6 +77,7 @@ let linear_of_rtl_fun
     linearfunbody =
       linearinstrs |> remove_useless_jumps |> remove_useless_labels;
     linearfuninfo = rtlfuninfo;
+    linearfunstksz = rtlfunstksz;
   }
 
 let linear_of_rtl_gdef = function

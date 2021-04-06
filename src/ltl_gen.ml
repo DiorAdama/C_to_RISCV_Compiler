@@ -11,6 +11,7 @@ open Report
 open Options
 
 
+
 (* list of registers used to store arguments. [a0-a7] *)
 let arg_registers =
   range ~start:starting_arg_register 8
@@ -52,7 +53,7 @@ let make_loc_mov src dst =
     [LMov(rdst,rsrc)]
 
 (* load_loc tmp allocation r = (l, r'). Loads the equivalent of RTL register r
-   in a LTL register r'. tmpis used if necessary. *)
+   in a LTL register r'. tmp is used if necessary. *)
 let load_loc tmp allocation r =
   match Hashtbl.find_option allocation r with
   | None ->
@@ -61,7 +62,7 @@ let load_loc tmp allocation r =
   | Some (Reg r) -> OK ([], r)
 
 (* store_loc tmp allocation r = (l, r'). I want to write in RTL register r.
-   Tells me that I just have to write to LTL register r' and execute l. *)
+   Tells me that I just have to write to LTL register r' and execute l. (tmp is rs in this scenario)*)
 let store_loc tmp allocation r =
   match Hashtbl.find_option allocation r with
   | None ->
@@ -286,7 +287,7 @@ let caller_save live_out allocation rargs =
    then we don't need its value to be preserved across function calls.) These
    registers are saved at [fp - 8 * (curstackslot + 1)] *)
 let ltl_instrs_of_linear_instr fname live_out allocation
-    numspilled epilogue_label ins =
+    numspilled epilogue_label (numlocals: int) ins  =
   let res =
   match ins with
   | Rbinop (b, rd, rs1, rs2) ->
@@ -342,7 +343,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation
 
   | Rcall (rd, fname, fargs) ->( 
       caller_save live_out allocation fargs >>= fun saved_regs ->
-        let (save_regs_instrs, arg_saved, ofs) = save_caller_save (Set.to_list saved_regs) (-numspilled-1) in
+        let (save_regs_instrs, arg_saved, ofs) = save_caller_save (Set.to_list saved_regs) (-numspilled-numlocals-1) in
           let stack_alloc_instr = [LAddi(reg_sp, reg_fp, (Archi.wordsize ())*ofs)] in
           pass_parameters fargs allocation arg_saved >>= fun (pass_parameter_instrs, npush) -> 
             let call_instr = [LCall fname] in 
@@ -370,6 +371,28 @@ let ltl_instrs_of_linear_instr fname live_out allocation
                  @ LComment "Restoring the Caller's registers" :: restore_instrs
             )
   )
+
+  | Rstk (rd, offs) -> (
+      store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
+      OK (LAddi (rd, reg_sp, offs)::ld)
+  )
+
+  | Rload (rd, rs, sz) -> ( 
+      load_loc reg_tmp1 allocation rs >>= fun (ls, addr) -> 
+      store_loc reg_tmp1 allocation rd >>= fun (ld, rd) -> 
+      mas_of_size sz >>= fun mas_sz ->
+      OK (ls @ (LLoad (rd, addr, 0, mas_sz))::ld)
+  ) 
+
+  | Rstore (rd, rs, sz) -> (
+      load_loc reg_tmp1 allocation rs >>= fun (ls1, rs1) -> 
+      load_loc reg_tmp2 allocation rd >>= fun (ls2, addr) -> 
+      mas_of_size sz >>= fun mas_sz ->
+      OK (ls1 @ ls2 @ [LStore(addr, 0, rs1, mas_sz)] )
+  )
+
+
+
   | _ -> Error "Could not recognize Linear Instruction"
   in
   res >>= fun l ->
@@ -393,8 +416,9 @@ let retrieve_nth_arg n numcalleesave =
    the value stored in s0 (fp), restore all the callee-save registers and jumps
    back to [ra]. *)
 let ltl_fun_of_linear_fun linprog
-    (({ linearfunargs; linearfunbody; linearfuninfo }): linear_fun) fname
+    (({ linearfunargs; linearfunbody; linearfuninfo; linearfunstksz }): linear_fun) fname
     (live_in,live_out) (allocation, numspilled) =
+  let numlocals = (linearfunstksz/Archi.wordsize()) in
   List.iteri (fun i pr ->
       Hashtbl.replace allocation pr (retrieve_nth_arg i 0)
     ) linearfunargs;
@@ -419,6 +443,7 @@ let ltl_fun_of_linear_fun linprog
     List.concat (List.map make_push (Set.to_list callee_saved_regs)) @
     LMov (reg_fp, reg_sp) ::
     make_sp_sub (numspilled * (Archi.wordsize ())) @
+    make_sp_sub (numlocals * (Archi.wordsize())) @
     [LComment "end prologue"] in
   let epilogue = LLabel epilogue_label ::
                  LMov(reg_sp, reg_fp) ::
@@ -427,7 +452,7 @@ let ltl_fun_of_linear_fun linprog
                  [LJmpr reg_ra] in
   list_map_resi (fun i ->
       ltl_instrs_of_linear_instr fname (Hashtbl.find_default live_out i Set.empty)
-        allocation numspilled epilogue_label) linearfunbody
+        allocation numspilled epilogue_label numlocals) linearfunbody
   >>= fun l ->
   let instrs = List.concat l 
   in
