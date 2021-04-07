@@ -5,18 +5,21 @@ tokens SYM_EQUALITY SYM_NOTEQ SYM_LT SYM_LEQ SYM_GT SYM_GEQ
 tokens SYM_VOID SYM_INT SYM_CHAR
 tokens SYM_CHARACTER<char>
 tokens SYM_AMPERSAND 
+tokens SYM_STRUCT SYM_POINT
 non-terminals S INSTR INSTRS LINSTRS ELSE EXPR FACTOR REST_IDENTIFIER_INSTR REST_IDENTIFIER_EXPR
 non-terminals LPARAMS REST_PARAMS
 non-terminals IDENTIFIER INTEGER
-non-terminals FUNDEF FUNDEFS
+non-terminals GLOBDEFS GLOBDEF
+non-terminals FUNDEF STRUCTDEF
 non-terminals FUNCALL_LPARAMS FUNCALL_REST_PARAMS
 non-terminals ADD_EXPRS ADD_EXPR
 non-terminals MUL_EXPRS MUL_EXPR
 non-terminals CMP_EXPRS CMP_EXPR
 non-terminals EQ_EXPRS EQ_EXPR
-non-terminals FUNC_DEF DATA_DEF REST_IDENTIFIER_ASSIGN FUN_DEF_OR_DEC
+non-terminals FUN_DECL DATA_DECL REST_IDENTIFIER_ASSIGN FUN_DEF_OR_DECL
 non-terminals CHARACTER 
 non-terminals REST_TYPE
+non-terminals DATA_DECLS VOID_OR_POINTER
 axiom S
 {
 
@@ -41,49 +44,71 @@ axiom S
     match subtree with 
       | NullLeaf -> ident 
       | Node (Targs, argums) -> Node (Tcall, [ident; subtree]) 
+      | StringLeaf structfield -> Node( Tstructdata, [ident; subtree])
+      | Node(Tstructdata, [field; ex]) -> Node (Tassign, [Node (Tassignvar, [Node(Tstructdata ,[ident; field]); ex])])
       | _ -> Node (Tassign, [Node (Tassignvar, [ident; subtree])])
 
-  let rec resolve_ptr data_type ident b = 
-    match ident with 
-      | [StringLeaf s] when b -> Node(data_type, ident) 
-      | [StringLeaf s] when not b -> StringLeaf s
-      | Node(Tptr, [])::tl when b -> Node(Tptr, [resolve_ptr data_type tl b])
-      | Node(Tptr, [])::tl when not b -> Node(Tvalueat, [resolve_ptr data_type tl b])
+  let rec resolve_ptr data_type ident is_declaration = 
+    match data_type, ident with 
+      | Node(Tstruct, [structname]), [StringLeaf s] when is_declaration -> Node(Tstruct, structname::ident)
+      | Node(data_type, []), [StringLeaf s] when is_declaration -> Node(data_type, ident) 
+      | _ , [StringLeaf s] when not is_declaration -> StringLeaf s
+      | _ , Node(Tptr, [])::tl when is_declaration -> Node(Tptr, [resolve_ptr data_type tl is_declaration])
+      | _ , Node(Tptr, [])::tl when not is_declaration -> Node(Tvalueat, [resolve_ptr data_type tl is_declaration])
       | _ -> assert false
 
 }
 
 rules
-S -> FUNDEFS SYM_EOF {  Node (Tlistglobdef, $1) }
+S -> GLOBDEFS SYM_EOF {  Node (Tlistglobdef, $1) }
 
 IDENTIFIER -> SYM_IDENTIFIER    { StringLeaf($1) }
 INTEGER -> SYM_INTEGER     { IntLeaf($1) }
 CHARACTER -> SYM_CHARACTER {CharLeaf($1)}
 
+DATA_DECLS -> DATA_DECL SYM_SEMICOLON DATA_DECLS {$1::$3}
+DATA_DECLS -> { [] }
 
-DATA_DEF -> SYM_INT REST_TYPE { resolve_ptr Tint $2 true}
-DATA_DEF -> SYM_CHAR REST_TYPE { resolve_ptr Tchar $2 true}
+DATA_DECL -> SYM_INT REST_TYPE { resolve_ptr (Node(Tint,[])) $2 true}
+DATA_DECL -> SYM_CHAR REST_TYPE { resolve_ptr (Node(Tchar,[])) $2 true}
+DATA_DECL -> SYM_VOID SYM_ASTERISK REST_TYPE { Node(Tptr, [resolve_ptr (Node(Tvoid, [])) $3 true])}
+DATA_DECL -> SYM_STRUCT IDENTIFIER REST_TYPE {resolve_ptr (Node(Tstruct, [$2])) $3 true}
 
 REST_TYPE -> IDENTIFIER {[$1]}
 REST_TYPE -> SYM_ASTERISK REST_TYPE {Node(Tptr, [])::$2}
 
-FUNC_DEF -> DATA_DEF {$1}
-FUNC_DEF -> SYM_VOID IDENTIFIER {Node (Tvoid, [$2])}
 
-FUNDEFS -> FUNDEF FUNDEFS   { $1::$2 }
-FUNDEFS -> { [] }
 
-FUNDEF -> FUNC_DEF SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS FUN_DEF_OR_DEC   
+GLOBDEFS -> GLOBDEF GLOBDEFS   { $1::$2 }
+GLOBDEFS -> { [] }
+
+GLOBDEF -> FUNDEF {$1}
+GLOBDEF -> STRUCTDEF {$1}
+
+
+STRUCTDEF -> SYM_STRUCT IDENTIFIER SYM_LBRACE DATA_DECLS SYM_RBRACE SYM_SEMICOLON 
+              { Node(Tstruct, [$2; Node(Tstructfields, $4)]) }
+
+FUN_DECL -> SYM_INT REST_TYPE { resolve_ptr (Node(Tint,[])) $2 true}
+FUN_DECL -> SYM_CHAR REST_TYPE { resolve_ptr (Node(Tchar,[])) $2 true}
+FUN_DECL -> SYM_VOID REST_TYPE { Node(Tptr, [resolve_ptr (Node(Tvoid,[])) $2 true]) }
+
+FUNDEF -> FUN_DECL SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS FUN_DEF_OR_DECL   
           { Node (Tfundef, [$1] @ [Node (Tfunargs, $3)] @ [Node (Tfunbody, $5)] ) }
 
-FUN_DEF_OR_DEC -> INSTR {[$1]}
-FUN_DEF_OR_DEC -> SYM_SEMICOLON {[]}
+FUN_DEF_OR_DECL -> INSTR {[$1]}
+FUN_DEF_OR_DECL -> SYM_SEMICOLON {[]}
 
-LPARAMS -> DATA_DEF REST_PARAMS  { Node(Targ, [$1])::$2 }
-LPARAMS -> SYM_VOID {[Node (Tvoid, [NullLeaf])]}
+VOID_OR_POINTER -> REST_TYPE REST_PARAMS { Node(Tptr, [resolve_ptr (Node(Tvoid,[])) $1 true])::$2 } 
+VOID_OR_POINTER -> {[Node (Tvoid, [NullLeaf])]}
+
+LPARAMS -> SYM_INT REST_TYPE REST_PARAMS    { (resolve_ptr (Node(Tint, [])) $2 true)::$3 }
+LPARAMS -> SYM_CHAR REST_TYPE REST_PARAMS   { (resolve_ptr (Node(Tchar,[])) $2 true)::$3 }
+LPARAMS -> SYM_STRUCT IDENTIFIER REST_TYPE REST_PARAMS{ (resolve_ptr (Node(Tstruct, [$2])) $3 true)::$4 }
+LPARAMS -> SYM_VOID VOID_OR_POINTER {$2}
 LPARAMS -> { [] }
 
-REST_PARAMS -> SYM_COMMA DATA_DEF REST_PARAMS   { Node(Targ, [$2])::$3 }
+REST_PARAMS -> SYM_COMMA DATA_DECL REST_PARAMS   { Node(Targ, [$2])::$3 }
 REST_PARAMS -> { [] }
 
 FUNCALL_LPARAMS -> EXPR FUNCALL_REST_PARAMS  { $1::$2 }
@@ -97,10 +122,9 @@ INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS LINSTRS ELSE  { Node (Tif
 INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {Node (Twhile, ([$3] @ [$5]) )}
 INSTR -> SYM_RETURN EXPR SYM_SEMICOLON  { Node (Treturn, [$2]) }
 INSTR -> IDENTIFIER REST_IDENTIFIER_INSTR SYM_SEMICOLON { resolve_identifier $1 $2 }
-INSTR -> DATA_DEF REST_IDENTIFIER_ASSIGN SYM_SEMICOLON {resolve_identifier $1 $2}
+INSTR -> DATA_DECL REST_IDENTIFIER_ASSIGN SYM_SEMICOLON {resolve_identifier $1 $2}
 INSTR -> SYM_ASTERISK REST_TYPE SYM_ASSIGN EXPR SYM_SEMICOLON 
-          { Node(Tassign, [Node(Tassignvar, [Node(Tvalueat, [resolve_ptr Tvoid $2 false]); $4])])} 
-INSTR -> SYM_VOID IDENTIFIER SYM_SEMICOLON {Node(Tvoid, [$2])}
+          { Node(Tassign, [Node(Tassignvar, [Node(Tvalueat, [resolve_ptr (Node(Tvoid,[])) $2 false]); $4])])} 
 INSTR -> LINSTRS { $1 }
 
 LINSTRS -> SYM_LBRACE INSTRS SYM_RBRACE   { Node (Tblock, $2) }
@@ -115,6 +139,7 @@ REST_IDENTIFIER_ASSIGN -> SYM_ASSIGN EXPR  { $2 }
 REST_IDENTIFIER_ASSIGN -> {NullLeaf}
 
 REST_IDENTIFIER_INSTR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
+REST_IDENTIFIER_INSTR -> SYM_POINT IDENTIFIER SYM_ASSIGN EXPR { Node(Tstructdata, [$2; $4]) }
 REST_IDENTIFIER_INSTR -> SYM_ASSIGN EXPR  { $2 } 
 
 EXPR -> EQ_EXPR EQ_EXPRS  { resolve_associativity $1 $2 }
@@ -136,6 +161,7 @@ FACTOR -> SYM_ASTERISK IDENTIFIER  {Node(Tvalueat, [$2])}
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS   {$2}
 
 REST_IDENTIFIER_EXPR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
+REST_IDENTIFIER_EXPR -> SYM_POINT IDENTIFIER {$2}
 REST_IDENTIFIER_EXPR -> { NullLeaf }
 
 
