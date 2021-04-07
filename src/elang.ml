@@ -16,6 +16,7 @@ type expr =
   | Echar of char
   | Eaddrof of expr 
   | Eload of expr
+  | Egetfield of expr*string
 
 type instr =
   | Iassign of string * expr
@@ -26,6 +27,7 @@ type instr =
   | Ireturn of expr
   | Iprint of expr
   | Istore of expr*expr
+  | Isetfield of expr * string * expr
 
 type efun = {
   funargs: ( string*typ ) list;
@@ -36,7 +38,8 @@ type efun = {
   funstksz: int;
 }
 
-type eprog = efun prog
+type eprog = (efun prog) * ((string, (string * typ) list) Hashtbl.t)
+
 
 
 

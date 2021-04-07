@@ -6,19 +6,68 @@ type typ =
   | Tchar 
   | Tvoid
   | Tptr of typ
+  | Tstruct of string
 
 let rec string_of_typ = function 
   | Tint -> "int"
   | Tchar -> "char"
   | Tvoid -> "void"
   | Tptr ty -> (string_of_typ ty) ^ "*"
+  | Tstruct s -> "struct " ^ s
 
-let size_of_type = function 
+let rec size_of_type (struct_defs: (string, (string * typ) list) Hashtbl.t) = function 
   | Tint -> OK 8
   | Tchar -> OK 1
   | Tptr _ -> OK 8
-  | Tvoid -> Error "Void variable does not have a size"
- 
+  | Tvoid -> Error "Void does not have a size"
+  | Tstruct s -> 
+      match Hashtbl.find_option struct_defs s with
+        | Some var_typ_list -> 
+            List.fold_left (
+              fun a (var_i, typ_i) -> 
+                a >>= fun a ->
+                size_of_type struct_defs typ_i >>= fun sz_i ->
+                OK (a+sz_i)
+              ) (OK 0) var_typ_list
+
+        | None -> Error ("@prog.size_of_type : Couldn't find struct " ^ s ^ " in struct_defs")
+  
+let field_offset (struct_defs: (string, (string * typ) list) Hashtbl.t) (s: string) (f: string): int res =
+  match Hashtbl.find_option struct_defs s with 
+    | Some var_typ_list -> (
+        List.fold_left (
+          fun a (var_i, typ_i) -> 
+            a >>= fun (offs, pursue) ->
+            if pursue && var_i <> f then
+              size_of_type struct_defs typ_i >>= fun sz_i ->
+              OK (offs+sz_i, pursue)
+            else 
+              OK (offs, false)
+          ) (OK (0,true)) var_typ_list >>= fun (ans, pursue) -> 
+        match pursue with 
+          | false -> OK ans
+          | true -> Error ("No such field '" ^ f ^ "' in struct '"^ s ^ "'")
+    )
+    | None -> Error ("@prog.size_of_type : Couldn't find struct " ^ s ^ " in struct_defs")
+
+let field_type (struct_defs: (string, (string * typ) list) Hashtbl.t) (s: string) (f: string): typ res =
+  match Hashtbl.find_option struct_defs s with 
+    | Some var_typ_list -> (
+        List.fold_left (
+          fun a (var_i, typ_i) -> 
+            a >>= fun (typ_ans, pursue) ->
+            if var_i = f then
+              OK (typ_i, false)
+            else
+              OK (typ_ans, pursue)
+          ) (OK (Tvoid, true)) var_typ_list >>= fun (ans, pursue) -> 
+        match pursue with 
+          | false -> OK ans
+          | true -> Error ("No such field '" ^ f ^ "' in struct '"^ s ^ "'")
+    )
+    | None -> Error ("@prog.size_of_type : Couldn't find struct " ^ s ^ " in struct_defs")
+
+    
 type mem_access_size =
   | MAS1
   | MAS4
