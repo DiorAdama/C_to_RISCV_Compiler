@@ -34,8 +34,9 @@ let eval_unop (u: unop) : int -> int =
 
 (* [eval_eexpr st e] évalue l'expression [e] dans l'état [st]. Renvoie une
    erreur si besoin. *)
-let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int) 
+let rec eval_eexpr (e : expr) st (ep) oc (sp: int) 
       ( cur_fun : efun) (fun_typ : (string, typ list * typ) Hashtbl.t )
+      (struct_typ: (string, (string * typ) list) Hashtbl.t)
       : (int * int state) res =
 
    match e with 
@@ -47,27 +48,27 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int)
             | None -> (
                match Hashtbl.find_option cur_fun.funvarinmem name with 
                   | Some offs -> 
-                        type_expr e cur_fun.funvartyp fun_typ >>= fun t ->
-                        size_of_type t >>= fun sz_t ->
+                        type_expr e cur_fun.funvartyp fun_typ struct_typ >>= fun t ->
+                        size_of_type struct_typ t >>= fun sz_t ->
                         Mem.read_bytes_as_int st.mem (sp+offs) sz_t >>= fun ans -> OK (ans, st)
                   | None -> Error ("Unknown variable " ^ name) 
             )
       )
       | Eunop (unary, x) ->(
-         eval_eexpr x st ep oc sp cur_fun fun_typ >>= fun (x, st) ->
+         eval_eexpr x st ep oc sp cur_fun fun_typ struct_typ >>= fun (x, st) ->
          OK (eval_unop unary x , st)
       )  
       | Ebinop (binary, x, y) ->(
-         type_expr x cur_fun.funvartyp fun_typ >>= fun x_t -> 
-         type_expr y cur_fun.funvartyp fun_typ >>= fun y_t ->
-            eval_eexpr x st ep oc sp cur_fun fun_typ >>= fun (x, st) ->
-            eval_eexpr y st ep oc sp cur_fun fun_typ >>= fun (y, st) ->
+         type_expr x cur_fun.funvartyp fun_typ struct_typ >>= fun x_t -> 
+         type_expr y cur_fun.funvartyp fun_typ struct_typ >>= fun y_t ->
+            eval_eexpr x st ep oc sp cur_fun fun_typ struct_typ >>= fun (x, st) ->
+            eval_eexpr y st ep oc sp cur_fun fun_typ struct_typ >>= fun (y, st) ->
                match x_t, y_t with 
                   | Tptr ty, int_t when List.mem int_t [Tint; Tchar] -> 
-                        size_of_type ty >>= fun sz_ty ->
+                        size_of_type struct_typ ty >>= fun sz_ty ->
                         OK (eval_binop binary x (y*sz_ty), st)
                   | int_t, Tptr ty when List.mem int_t [Tint; Tchar] -> 
-                        size_of_type ty >>= fun sz_ty ->
+                        size_of_type struct_typ ty >>= fun sz_ty ->
                         OK (eval_binop binary (x*sz_ty) y, st)
                            
                   | _, _ ->  OK (eval_binop binary x y, st)
@@ -75,12 +76,12 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int)
       | Ecall (fname, argms) -> 
          let f_fold argums expri = (
           argums >>= fun (argums, sti) ->
-          eval_eexpr expri sti ep oc sp cur_fun fun_typ >>= fun (ans_i, sti) -> 
+          eval_eexpr expri sti ep oc sp cur_fun fun_typ struct_typ >>= fun (ans_i, sti) -> 
             OK ((argums@[ans_i]), sti)
         ) in
         (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
             find_function ep fname >>= fun func_def ->
-            eval_efun st func_def fname arguments ep oc sp fun_typ >>= fun (ans, st) -> 
+            eval_efun st func_def fname arguments ep oc sp fun_typ struct_typ >>= fun (ans, st) -> 
                option_to_res_bind ans  ("Error in elang_run.eval_eexpr Ecall " ^ fname) (fun ans -> OK (ans, st))
 
       | Eaddrof eexpr -> (
@@ -91,21 +92,23 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int)
                         | Some offs -> OK (sp + offs, st)
                )
                | Eload ptr_expr -> 
-                     eval_eexpr ptr_expr st ep oc sp cur_fun fun_typ 
+                     eval_eexpr ptr_expr st ep oc sp cur_fun fun_typ struct_typ
 
                | _ -> Error "@elang_run.eval_eexpr : can not get address of Eexpr "
       )
 
       | Eload eexpr ->(
-            type_expr eexpr cur_fun.funvartyp fun_typ >>= fun t -> 
+            type_expr eexpr cur_fun.funvartyp fun_typ struct_typ >>= fun t -> 
             match t with 
                | Tptr ptr_t -> 
-                     eval_eexpr eexpr st ep oc sp cur_fun fun_typ >>= fun (addr, st) ->
-                     size_of_type ptr_t >>= fun sz_ptr_t ->
+                     eval_eexpr eexpr st ep oc sp cur_fun fun_typ struct_typ >>= fun (addr, st) ->
+                     size_of_type struct_typ ptr_t >>= fun sz_ptr_t ->
                      Mem.read_bytes_as_int st.mem addr sz_ptr_t >>= fun ans -> OK (ans, st)
 
                | _ -> Error "@elang_run.eval_eexpr : can not load data from non-pointer variable"
       ) 
+
+      | Egetfield _ -> Error "Egetfield not implemented yet"
 
          
 
@@ -121,34 +124,35 @@ let rec eval_eexpr (e : expr) st (ep : eprog) oc (sp: int)
    lieu et que l'exécution doit continuer.
 
    - [st'] est l'état mis à jour. *)
-and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc (sp: int) 
-   ( cur_fun: efun) (fun_typ : (string, typ list * typ) Hashtbl.t ) :
+and eval_einstr (ins: instr) (st: int state) (ep) oc (sp: int) 
+   ( cur_fun: efun) (fun_typ : (string, typ list * typ) Hashtbl.t ) 
+   (struct_typ: (string, (string * typ) list) Hashtbl.t) :
   (int option * int state) res =
 
    match ins with
       | Iassign (var_name, eexpr) ->(
-            eval_eexpr eexpr st ep oc sp cur_fun fun_typ >>= fun (expr_val, st) ->(
+            eval_eexpr eexpr st ep oc sp cur_fun fun_typ struct_typ >>= fun (expr_val, st) ->(
             match Hashtbl.find_option cur_fun.funvarinmem var_name with 
                | None -> Hashtbl.replace st.env var_name expr_val; OK (None, st)
                | Some offs ->
-                     type_expr (Evar var_name) cur_fun.funvartyp fun_typ >>= fun t ->
-                     size_of_type t >>= fun sz_t ->
+                     type_expr (Evar var_name) cur_fun.funvartyp fun_typ struct_typ >>= fun t ->
+                     size_of_type struct_typ t >>= fun sz_t ->
                      let byte_list = split_bytes sz_t expr_val in 
                      Mem.write_bytes st.mem (sp+offs) byte_list >>= fun _ -> OK (None, st) 
             )
       )
       | Iif (ex, i1, i2) ->(
-            match eval_eexpr ex st ep oc sp cur_fun fun_typ with 
-               | OK (1, new_st) -> eval_einstr i1 new_st ep oc sp cur_fun fun_typ
-               | OK (0, new_st) -> eval_einstr i2 new_st ep oc sp cur_fun fun_typ
+            match eval_eexpr ex st ep oc sp cur_fun fun_typ struct_typ with 
+               | OK (1, new_st) -> eval_einstr i1 new_st ep oc sp cur_fun fun_typ struct_typ
+               | OK (0, new_st) -> eval_einstr i2 new_st ep oc sp cur_fun fun_typ struct_typ
                | _ -> Error "Failed to Evaluate if instruction"
       ) 
 
       | Iwhile (ex, i) ->(
          let rec f_while ret_while state_while = 
-            match eval_eexpr ex state_while ep oc sp cur_fun fun_typ with 
+            match eval_eexpr ex state_while ep oc sp cur_fun fun_typ struct_typ with 
             | OK (1, new_st) -> 
-               eval_einstr i new_st ep oc sp cur_fun fun_typ >>= fun (next_ret, next_st) -> 
+               eval_einstr i new_st ep oc sp cur_fun fun_typ struct_typ >>= fun (next_ret, next_st) -> 
                f_while next_ret next_st
             | OK (0, new_st) -> OK (ret_while, new_st)
             | _ -> Error "Failed to Evaluate while instruction"
@@ -160,18 +164,18 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc (sp: int)
             a >>= fun (ans, new_st) ->
             match ans with 
                | Some first_ret -> OK (ans, new_st)
-               | _ -> eval_einstr ii new_st ep oc sp cur_fun fun_typ
+               | _ -> eval_einstr ii new_st ep oc sp cur_fun fun_typ struct_typ
          in
          List.fold_left f_fold (OK (None, st)) instrs
       )
       | Ireturn ex ->(
-         eval_eexpr ex st ep oc sp cur_fun fun_typ>>= fun (ex, st) ->
+         eval_eexpr ex st ep oc sp cur_fun fun_typ struct_typ >>= fun (ex, st) ->
             OK (Some ex, st)
       )
       | Icall ("print", argms) -> 
          let f_fold argums expri = (
           argums >>= fun (argums, sti) ->
-          eval_eexpr expri sti ep oc sp cur_fun fun_typ>>= fun (ans_i, sti) -> 
+          eval_eexpr expri sti ep oc sp cur_fun fun_typ struct_typ >>= fun (ans_i, sti) -> 
             OK ((argums@[ans_i]), sti)
         ) in
         (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
@@ -179,28 +183,28 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc (sp: int)
             OK (ans, st)
 
       | Icall ("print_char", [arg]) -> 
-         eval_eexpr arg st ep oc sp cur_fun fun_typ >>= fun (ans, st) -> 
+         eval_eexpr arg st ep oc sp cur_fun fun_typ struct_typ >>= fun (ans, st) -> 
          do_builtin oc st.mem "print_char" [ans] >>= fun ans -> 
             OK (ans, st)
       
       | Icall (fname, argms) ->(
             let f_fold argums expri = (
                argums >>= fun (argums, sti) ->
-               eval_eexpr expri sti ep oc sp cur_fun fun_typ >>= fun (ans_i, sti) -> 
+               eval_eexpr expri sti ep oc sp cur_fun fun_typ struct_typ >>= fun (ans_i, sti) -> 
                  OK ((argums@[ans_i]), sti)
              ) in
              (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
                  find_function ep fname >>= fun func_def ->
-                 eval_efun st func_def fname arguments ep oc sp fun_typ >>= fun (ans, st) -> 
+                 eval_efun st func_def fname arguments ep oc sp fun_typ struct_typ >>= fun (ans, st) -> 
                   OK (None, st)
       )
       | Istore (e1, e2) -> (
-         eval_eexpr e2 st ep oc sp cur_fun fun_typ >>= fun (val2, st) ->
-         type_expr e1 cur_fun.funvartyp fun_typ >>= fun t -> 
+         eval_eexpr e2 st ep oc sp cur_fun fun_typ struct_typ >>= fun (val2, st) ->
+         type_expr e1 cur_fun.funvartyp fun_typ struct_typ >>= fun t -> 
             match t with 
                | Tptr ptr_t -> 
-                     eval_eexpr e1 st ep oc sp cur_fun fun_typ >>= fun (addr, st) ->
-                     size_of_type ptr_t >>= fun sz_ptr_t ->
+                     eval_eexpr e1 st ep oc sp cur_fun fun_typ struct_typ >>= fun (addr, st) ->
+                     size_of_type struct_typ ptr_t >>= fun sz_ptr_t ->
                      let byte_list = split_bytes sz_ptr_t val2 in
                      Mem.write_bytes st.mem addr byte_list >>= fun ans -> OK (None, st)
                | _ -> Error ("@elang_run.eval_einstr : can not load data from non-pointer variable " ^ (string_of_typ t))
@@ -215,7 +219,8 @@ and eval_einstr (ins: instr) (st: int state) (ep : eprog) oc (sp: int)
    Cette fonction renvoie un couple (ret, st') avec la même signification que
    pour [eval_einstr]. *)
 and eval_efun (st: int state) ( (*{ funargs; funbody; funvartyp; funrettyp; funvarinmem; funstksz}*) cur_fun: efun)
-    (fname: string) (vargs: int list) (ep : eprog) oc (sp: int) (fun_typ : (string, typ list * typ) Hashtbl.t )
+    (fname: string) (vargs: int list) (ep) oc (sp: int) (fun_typ : (string, typ list * typ) Hashtbl.t )
+    (struct_typ: (string, (string * typ) list) Hashtbl.t)
   : (int option * int state) res =
   (* L'environnement d'une fonction (mapping des variables locales vers leurs
      valeurs) est local et un appel de fonction ne devrait pas modifier les
@@ -227,7 +232,7 @@ and eval_efun (st: int state) ( (*{ funargs; funbody; funvartyp; funrettyp; funv
   let env = Hashtbl.create 17 in
   match List.iter2 (fun a v -> Hashtbl.replace env (fst a) v) cur_fun.funargs vargs with
   | () ->
-    eval_einstr cur_fun.funbody { st with env = env } ep oc sp cur_fun fun_typ >>= fun (v, st') ->
+    eval_einstr cur_fun.funbody { st with env = env } ep oc sp cur_fun fun_typ struct_typ >>= fun (v, st') ->
     OK (v, { st' with env = env_save })
   | exception Invalid_argument _ ->
     Error (Format.sprintf
@@ -256,19 +261,22 @@ and eval_efun (st: int state) ( (*{ funargs; funbody; funvartyp; funrettyp; funv
 
 let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   : int option res =
+
+  let struct_type = snd ep in 
+  let efuns = fst ep in
   let st = init_state memsize in
-  let fun_typ = Hashtbl.create (List.length ep) in 
+  let fun_typ = Hashtbl.create (List.length efuns) in 
       Hashtbl.replace fun_typ "print" ([Tint], Tvoid);
       Hashtbl.replace fun_typ "print_int" ([Tint], Tvoid);
       Hashtbl.replace fun_typ "print_char" ([Tchar], Tvoid);
    List.iter (fun (fname, Gfun ef) -> 
       let arg_types = List.map (fun (key, v) -> v) ef.funargs in
       Hashtbl.replace fun_typ fname (arg_types, ef.funrettyp);
-      ) ep ;
-  find_function ep "main" >>= fun f ->
+      ) efuns ;
+  find_function efuns "main" >>= fun f ->
   (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
   let n = List.length f.funargs in
   let params = take n params in
-  eval_efun st f "main" params ep oc memsize fun_typ >>= fun (v, st) ->
+  eval_efun st f "main" params efuns oc memsize fun_typ struct_type >>= fun (v, st) ->
   OK v
 

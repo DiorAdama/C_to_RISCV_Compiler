@@ -38,6 +38,7 @@ let rec dump_eexpr = function
   | Echar c -> Printf.sprintf "%c" c
   | Eaddrof ex -> Printf.sprintf "&%s" (dump_eexpr ex)
   | Eload ex -> Printf.sprintf "*%s" (dump_eexpr ex)
+  | Egetfield (ex, field) -> Printf.sprintf "%s.%s" (dump_eexpr ex) field
 
 let indent_size = 2
 let spaces n =
@@ -78,6 +79,10 @@ let rec dump_einstr_rec indent oc i =
   |Istore (ex1, ex2) ->
     print_spaces oc indent;
     Format.fprintf oc "*%s = %s;\n" (dump_eexpr ex1) (dump_eexpr ex2)
+  
+  | Isetfield (ex1, field, ex2) -> 
+      print_spaces oc indent;
+      Format.fprintf oc "%s.%s = %s;\n" (dump_eexpr ex1) field (dump_eexpr ex2)
 
 let dump_einstr oc i = dump_einstr_rec 0 oc i
 
