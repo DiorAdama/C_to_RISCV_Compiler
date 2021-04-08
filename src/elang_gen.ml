@@ -77,7 +77,13 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
           | Tptr t -> OK t 
           | _ -> Error "elang_gen.type_expr: Can not load value from non pointer variable"
     )
-    | Egetfield _-> Error "Egetfield not implemented yet"
+    | Egetfield (ex, field)-> (
+        type_expr ex var_typ fun_typ struct_typ >>= fun st_t ->
+          match st_t with 
+            | Tptr (Tstruct str_name) -> field_type struct_typ str_name field
+            | _ -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] unfound" (dump_eexpr e))
+    )
+
 
 
 
@@ -160,6 +166,14 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
           OK (Ecall (fname, arguments))
       )
 
+      | Node (Tstructdata, [str; StringLeaf field]) -> (
+          make_eexpr_of_ast str var_typ fun_typ struct_typ >>= fun str_ex ->
+          type_expr str_ex var_typ fun_typ struct_typ >>= fun str_t ->
+          match str_t with 
+            | Tstruct _ -> OK (Egetfield (Eaddrof str_ex, field))
+            | _ -> Error "@elang_gen.make_eexpr_of_ast : can not get field of non-struct variable"
+      )
+
       | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
                       (string_of_ast a))
   in
@@ -190,16 +204,15 @@ let tag_is_typ = function
 let rec make_typ_of_ast (a : Ast.tree) = 
   match a with 
     | Node(ttag, [StringLeaf s]) when (tag_is_typ ttag && ttag <> Ast.Tptr) -> OK (s, typ_of_tag ttag)
+    | Node(Tstruct, [StringLeaf str; StringLeaf str_name]) -> OK (str_name, Tstruct str)
     | Node(Tptr, [tl]) -> 
         make_typ_of_ast tl >>= fun (s, t) ->
           OK (s, Tptr t)
     | _ -> Error " elang_gen.make_typ_of_ast: Could not recognize variable type from ast"
 
 
-let init_var (var: string) (t : typ) var_typ = 
-  if Hashtbl.find_option var_typ var = Some Tvoid 
-    then Error "Variable of type void can not be initialized" 
-  else if Hashtbl.mem var_typ var 
+let declare_var (var: string) (t : typ) var_typ = 
+  if Hashtbl.mem var_typ var 
     then Error ("variable " ^ var ^ " already defined") 
   else(
     Hashtbl.add var_typ var t;
@@ -210,7 +223,7 @@ let init_var (var: string) (t : typ) var_typ =
 
 let init_expr_of_tag = function 
   | Ast.Tint -> Eint 0
-  | Ast.Tchar -> Echar '0'
+  | Ast.Tchar -> Echar '@'
   | Ast.Tvoid -> Eint 0
   | Ast.Tptr -> Eint 0
   | _ -> assert false
@@ -223,10 +236,19 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
 
       | Node (ttag, [_]) when (tag_is_typ ttag) -> (
           make_typ_of_ast a >>= fun (s, typ_s) -> 
-          init_var s typ_s var_typ >>= fun _ ->
+          declare_var s typ_s var_typ >>= fun _ ->
           match ttag with 
-            | Tvoid -> OK (Iblock [])
+            | Tvoid -> Error (Format.sprintf "variable '%s' declared void" s)
             | _ ->  OK (Iassign (s, init_expr_of_tag ttag)) 
+      )
+
+      | Node (Tstruct, [StringLeaf str; StringLeaf str_name]) ->(
+            match Hashtbl.find_option struct_typ str with 
+              | Some _ -> 
+                  make_typ_of_ast a >>= fun (var_name, var_t) -> 
+                  declare_var var_name var_t var_typ >>= fun _ -> 
+                    OK (Iassign (var_name, Eint 0))
+              | None -> Error (Format.sprintf "@elang_gen.make_einstr_of_ast: Can not find struct [%s] " str) 
       )
 
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) ->( 
@@ -234,7 +256,7 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
           match e1 with 
             | Node(ttag, [_]) when (tag_is_typ ttag) -> 
                 make_typ_of_ast e1 >>= fun (s1, typ_s1) -> 
-                init_var s1 typ_s1 var_typ >>= fun var1 -> 
+                declare_var s1 typ_s1 var_typ >>= fun var1 -> 
                   comp_typ var1 ex2 var_typ fun_typ struct_typ >>= fun b -> 
                     OK (Iassign (s1, ex2))
             
@@ -244,6 +266,7 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
                 comp_typ ex1 ex2 var_typ fun_typ struct_typ >>= fun b ->
                   match ex1 with 
                     | Eload ptr -> OK (Istore (ptr, ex2))
+                    | Egetfield (str_ex, field) -> OK (Isetfield (str_ex, field, ex2))
                     | _ -> string_of_varexpr ex1 >>= fun s1 -> OK (Iassign (s1, ex2))
       )
 
@@ -352,7 +375,8 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
   match a with
   | Node (Tfundef, [ast_fun_decl; Node (Tfunargs, fargs); Node (Tfunbody, [fblock])]) ->
       
-      list_map_res make_ident fargs >>= fun fargs ->
+    
+        list_map_res make_ident fargs >>= fun fargs ->
 
         (*adding the inputs of the function to var_typ*)
         List.iter (fun (k, v) -> Hashtbl.replace var_typ k v) fargs;

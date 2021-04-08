@@ -99,12 +99,12 @@ FUNDEF -> FUN_DECL SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS FUN_DEF_OR_DECL
 FUN_DEF_OR_DECL -> INSTR {[$1]}
 FUN_DEF_OR_DECL -> SYM_SEMICOLON {[]}
 
-VOID_OR_POINTER -> REST_TYPE REST_PARAMS { Node(Tptr, [resolve_ptr (Node(Tvoid,[])) $1 true])::$2 } 
-VOID_OR_POINTER -> {[Node (Tvoid, [NullLeaf])]}
+VOID_OR_POINTER -> REST_TYPE REST_PARAMS { Node( Targ, [Node(Tptr, [resolve_ptr (Node(Tvoid,[])) $1 true])])::$2 } 
+VOID_OR_POINTER -> {[]}
 
-LPARAMS -> SYM_INT REST_TYPE REST_PARAMS    { (resolve_ptr (Node(Tint, [])) $2 true)::$3 }
-LPARAMS -> SYM_CHAR REST_TYPE REST_PARAMS   { (resolve_ptr (Node(Tchar,[])) $2 true)::$3 }
-LPARAMS -> SYM_STRUCT IDENTIFIER REST_TYPE REST_PARAMS{ (resolve_ptr (Node(Tstruct, [$2])) $3 true)::$4 }
+LPARAMS -> SYM_INT REST_TYPE REST_PARAMS    { Node(Targ, [(resolve_ptr (Node(Tint, [])) $2 true)])::$3 }
+LPARAMS -> SYM_CHAR REST_TYPE REST_PARAMS   { Node(Targ, [(resolve_ptr (Node(Tchar,[])) $2 true)])::$3 }
+LPARAMS -> SYM_STRUCT IDENTIFIER REST_TYPE REST_PARAMS{ Node(Targ, [(resolve_ptr (Node(Tstruct, [$2])) $3 true)])::$4 }
 LPARAMS -> SYM_VOID VOID_OR_POINTER {$2}
 LPARAMS -> { [] }
 
