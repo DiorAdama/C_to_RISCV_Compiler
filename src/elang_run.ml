@@ -87,7 +87,7 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
         (List.fold_left f_fold (OK ([],st) ) argms) >>= fun (arguments, st) ->
             find_function ep fname >>= fun func_def ->
             eval_efun st func_def fname arguments ep oc sp fun_typ struct_typ >>= fun (ans, st) -> 
-               option_to_res_bind ans  ("Error in elang_run.eval_eexpr Ecall " ^ fname) (fun ans -> OK (ans, st))
+               option_to_res_bind ans  ("Error in elang_run.eval_eexpr Ecall" ^ fname) (fun ans -> OK (ans, st))
 
       | Eaddrof eexpr -> (
             match eexpr with 
@@ -101,7 +101,8 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
                )
                | Eload ptr_expr -> 
                      eval_eexpr ptr_expr st ep oc sp cur_fun fun_typ struct_typ
-
+               
+               | Eint i -> OK (i, st)
                | _ -> Error "@elang_run.eval_eexpr : can not get address of Eexpr "
       )
 
