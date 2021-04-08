@@ -24,6 +24,8 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
         cfg_expr_of_eexpr e1 cur_efun fun_typ struct_typ >>= fun cfg_e1 ->
         cfg_expr_of_eexpr e2 cur_efun fun_typ struct_typ >>= fun cfg_e2 ->
           match t_e1, t_e2 with 
+            | Tptr (Tstruct _), _ 
+            | _ , Tptr (Tstruct _) -> OK (Ebinop (b, cfg_e1, cfg_e2))
             | Tptr ty, int_t when List.mem int_t [Tint; Tchar] -> 
                   size_of_type struct_typ ty >>= fun sz_ty ->
                   OK ( Ebinop (b, cfg_e1, Ebinop (Emul, cfg_e2, Eint sz_ty)))
@@ -64,8 +66,8 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
       match eexpr with 
         | Evar var_name -> (
               match Hashtbl.find_option cur_efun.funvarinmem var_name with 
-                  | None -> Error "@elang_run.eval_eexpr: Variable not found"
-                  | Some offs -> OK (Estk offs)
+                | Some offs -> OK (Estk offs) 
+                | None -> Error "@cfg_gen.cfg_expr_of_eexpr: Variable not found"    
         )
         | Eload ptr_expr -> 
               cfg_expr_of_eexpr ptr_expr cur_efun fun_typ struct_typ
@@ -84,7 +86,23 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
         | _ -> Error "@cfg_gen.cfg_expr_of_eexpr : can not load data from non-pointer variable"
   ) 
 
-  | Elang.Egetfield _ -> Error "Egetfield not implemented yet"
+  | Elang.Egetfield (eexpr, field) -> (
+      type_expr eexpr cur_efun.funvartyp fun_typ struct_typ >>= fun t -> 
+        match t with 
+          | Tptr (Tstruct str_name) -> (
+              cfg_expr_of_eexpr eexpr cur_efun fun_typ struct_typ >>= fun cfg_expr ->
+                match cfg_expr with 
+                  | Estk str_pos ->
+                      field_offset struct_typ str_name field >>= fun field_offs -> 
+                      field_type struct_typ str_name field >>= fun f_typ ->
+                      size_of_type struct_typ f_typ >>= fun sz_typ -> (
+                          match f_typ with 
+                            | Tstruct _ -> OK (Estk (str_pos + field_offs))
+                            | _ -> OK (Eload (Estk (str_pos + field_offs), sz_typ)))
+                  | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
+          )
+          | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
+  )
 
 
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
@@ -164,14 +182,30 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
       type_expr e1 cur_efun.funvartyp fun_typ struct_typ >>= fun t -> 
         match t with 
             | Tptr ptr_t -> 
-                  cfg_expr_of_eexpr e1 cur_efun fun_typ struct_typ >>= fun e1_cfg ->
-                  size_of_type struct_typ ptr_t >>= fun sz_ptr_t ->
-                  Hashtbl.replace cfg next (Cstore (e1_cfg, e2_cfg, sz_ptr_t, succ));
-                  OK (next, next+1)
+                cfg_expr_of_eexpr e1 cur_efun fun_typ struct_typ >>= fun e1_cfg ->
+                size_of_type struct_typ ptr_t >>= fun sz_ptr_t ->
+                Hashtbl.replace cfg next (Cstore (e1_cfg, e2_cfg, sz_ptr_t, succ));
+                OK (next, next+1)
             | _ -> Error ("@cfg_gen.cfg_node_of_einstr : can not load data from non-pointer variable " ^ (string_of_typ t))
   ) 
 
-  | Elang.Isetfield _ -> Error "Isetfield not implemented yet"
+  | Elang.Isetfield (e1, field, e2) -> (
+      cfg_expr_of_eexpr e2 cur_efun fun_typ struct_typ >>= fun e2_cfg ->
+      type_expr e1 cur_efun.funvartyp fun_typ struct_typ >>= fun t -> 
+      match t with 
+        | Tptr (Tstruct str_name) -> 
+            cfg_expr_of_eexpr e1 cur_efun fun_typ struct_typ >>= fun e1_cfg ->(
+            match e1_cfg with 
+              | Estk str_pos -> 
+                  field_offset struct_typ str_name field >>= fun field_offs -> 
+                  field_type struct_typ str_name field >>= fun f_typ ->
+                  size_of_type struct_typ f_typ >>= fun sz_f_typ ->
+                  Hashtbl.replace cfg next (Cstore (Estk (str_pos + field_offs), e2_cfg, sz_f_typ, succ));
+                  OK (next, next+1)
+              | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
+            )
+        | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
+  )
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The
    [reachable_nodes n cfg] constructs the set of node identifiers that are

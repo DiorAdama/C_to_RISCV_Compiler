@@ -92,12 +92,12 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
       | Eaddrof eexpr -> (
             match eexpr with 
                | Evar var_name -> (
-                     match Hashtbl.find_option cur_fun.funvarinmem var_name with 
-                        | Some offs -> OK (sp + offs, st)
-                        | None -> 
-                           match Hashtbl.find_option st.env var_name with
-                              | Some i -> OK (i, st)
-                              | _ -> Error "@elang_run.eval_eexpr: Variable not found"
+                     match Hashtbl.find_option st.env var_name with
+                        | Some i -> OK (i, st)
+                        | _ -> (
+                           match Hashtbl.find_option cur_fun.funvarinmem var_name with 
+                              | Some offs -> OK (sp + offs, st)
+                              | None ->  Error "@elang_run.eval_eexpr: Variable not found")
                )
                | Eload ptr_expr -> 
                      eval_eexpr ptr_expr st ep oc sp cur_fun fun_typ struct_typ
@@ -132,7 +132,7 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
                                  Mem.read_bytes_as_int st.mem ( str_pos + field_offs) sz_ptr_t >>= fun ans -> 
                                  OK (ans, st)
                      )
-                  | _ -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] is not struct pointer" (dump_eexpr eexpr))
+                  | _ -> Error (Format.sprintf "elang_run.eval_eexpr: Type of expr[%s] is not struct pointer" (dump_eexpr eexpr))
       )
 
          
@@ -243,8 +243,9 @@ and eval_einstr (ins: instr) (st: int state) (ep) oc (sp: int)
                | Tptr (Tstruct str_name) -> 
                   eval_eexpr e1 st ep oc sp cur_fun fun_typ struct_typ >>= fun (str_pos, st) -> 
                   field_offset struct_typ str_name field >>= fun field_offs -> 
-                     size_of_type struct_typ t >>= fun sz_ptr_t ->
-                     let byte_list = split_bytes sz_ptr_t val2 in
+                  field_type struct_typ str_name field >>= fun f_typ ->
+                     size_of_type struct_typ f_typ >>= fun sz_f_typ ->
+                     let byte_list = split_bytes sz_f_typ val2 in
                      Mem.write_bytes st.mem ( str_pos + field_offs) byte_list >>= fun ans -> OK (None, st)
 
                | _ -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] is not struct pointer" (dump_eexpr e1))
