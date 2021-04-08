@@ -81,7 +81,7 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
         type_expr ex var_typ fun_typ struct_typ >>= fun st_t ->
           match st_t with 
             | Tptr (Tstruct str_name) -> field_type struct_typ str_name field
-            | _ -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] unfound" (dump_eexpr e))
+            | _ -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] is not struct pointer" (dump_eexpr ex))
     )
 
 
@@ -384,6 +384,7 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
         make_typ_of_ast ast_fun_decl >>= fun (fname, f_ret_type) ->
         (*adding the current function to fun_typ*)
         let arg_types = List.map (fun (key, v) -> v) fargs in
+        let arg_vars = List.map (fun (key, v) -> key) fargs in
         Hashtbl.replace fun_typ fname (arg_types, f_ret_type);
 
         make_einstr_of_ast fblock var_typ fun_typ struct_typ >>= fun fblock ->
@@ -391,7 +392,7 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
         let stk_scalar_vars = addr_taken_instr fblock in 
         let stk_struct_vars = (Hashtbl.fold (fun k v ans -> 
           match v with 
-            | Prog.Tstruct _ -> Set.add k ans
+            | Prog.Tstruct _ -> if (List.mem k arg_vars) then ans else Set.add k ans
             | _ -> ans
         ) var_typ Set.empty) in
         

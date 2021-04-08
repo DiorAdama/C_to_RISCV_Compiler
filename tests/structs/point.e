@@ -19,7 +19,6 @@ int main(){
   p1.y = 3;
   p2.x = -5;
   p2.y = 4;
-  
   print(scalar_product(p1,p2));
   return (orthogonal(p1,p2));
 }

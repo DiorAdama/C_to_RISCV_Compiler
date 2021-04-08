@@ -6,6 +6,7 @@ open Utils
 open Builtins
 open Utils
 open Elang_gen
+open Elang_print
 
 let binop_bool_to_int f x y = if f x y then 1 else 0
 
@@ -47,10 +48,14 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
             | Some i -> OK (i, st)
             | None -> (
                match Hashtbl.find_option cur_fun.funvarinmem name with 
-                  | Some offs -> 
+                  | Some offs -> (
                         type_expr e cur_fun.funvartyp fun_typ struct_typ >>= fun t ->
-                        size_of_type struct_typ t >>= fun sz_t ->
-                        Mem.read_bytes_as_int st.mem (sp+offs) sz_t >>= fun ans -> OK (ans, st)
+                        match t with 
+                           | Tstruct _ -> OK (sp + offs, st)
+                           | _ ->   
+                              size_of_type struct_typ t >>= fun sz_t ->
+                              Mem.read_bytes_as_int st.mem (sp+offs) sz_t >>= fun ans -> OK (ans, st)
+                  )
                   | None -> Error ("Unknown variable " ^ name) 
             )
       )
@@ -88,8 +93,11 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
             match eexpr with 
                | Evar var_name -> (
                      match Hashtbl.find_option cur_fun.funvarinmem var_name with 
-                        | None -> Error "@elang_run.eval_eexpr: Variable not found"
                         | Some offs -> OK (sp + offs, st)
+                        | None -> 
+                           match Hashtbl.find_option st.env var_name with
+                              | Some i -> OK (i, st)
+                              | _ -> Error "@elang_run.eval_eexpr: Variable not found"
                )
                | Eload ptr_expr -> 
                      eval_eexpr ptr_expr st ep oc sp cur_fun fun_typ struct_typ
@@ -108,7 +116,23 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
                | _ -> Error "@elang_run.eval_eexpr : can not load data from non-pointer variable"
       ) 
 
-      | Egetfield _ -> Error "Egetfield not implemented yet"
+      | Egetfield (eexpr, field) -> (
+            type_expr eexpr cur_fun.funvartyp fun_typ struct_typ >>= fun t -> 
+               match t with 
+                  | Tptr (Tstruct str_name) -> 
+                     eval_eexpr eexpr st ep oc sp cur_fun fun_typ struct_typ >>= fun (str_pos, st) -> 
+                     (*eval_einstr (Icall ("print", [Eint str_pos])) st ep oc sp cur_fun fun_typ struct_typ >>= fun _ ->*)
+                     field_offset struct_typ str_name field >>= fun field_offs -> 
+                     field_type struct_typ str_name field >>= fun f_typ ->(
+                        match f_typ with 
+                           | Tstruct _ -> OK ( str_pos + field_offs, st)
+                           | _ -> 
+                                 size_of_type struct_typ f_typ >>= fun sz_ptr_t ->
+                                 Mem.read_bytes_as_int st.mem ( str_pos + field_offs) sz_ptr_t >>= fun ans -> 
+                                 OK (ans, st)
+                     )
+                  | _ -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] is not struct pointer" (dump_eexpr eexpr))
+      )
 
          
 
@@ -209,6 +233,21 @@ and eval_einstr (ins: instr) (st: int state) (ep) oc (sp: int)
                      Mem.write_bytes st.mem addr byte_list >>= fun ans -> OK (None, st)
                | _ -> Error ("@elang_run.eval_einstr : can not load data from non-pointer variable " ^ (string_of_typ t))
       ) 
+
+      | Isetfield (e1, field, e2) -> (
+         eval_eexpr e2 st ep oc sp cur_fun fun_typ struct_typ >>= fun (val2, st) ->
+         type_expr e1 cur_fun.funvartyp fun_typ struct_typ >>= fun t -> 
+
+            match t with 
+               | Tptr (Tstruct str_name) -> 
+                  eval_eexpr e1 st ep oc sp cur_fun fun_typ struct_typ >>= fun (str_pos, st) -> 
+                  field_offset struct_typ str_name field >>= fun field_offs -> 
+                     size_of_type struct_typ t >>= fun sz_ptr_t ->
+                     let byte_list = split_bytes sz_ptr_t val2 in
+                     Mem.write_bytes st.mem ( str_pos + field_offs) byte_list >>= fun ans -> OK (None, st)
+
+               | _ -> Error (Format.sprintf "elang_gen.type_expr: Type of expr[%s] is not struct pointer" (dump_eexpr e1))
+      )
       
       | _ -> Error "Unrecognized Instruction"
 
@@ -233,7 +272,7 @@ and eval_efun (st: int state) ( (*{ funargs; funbody; funvartyp; funrettyp; funv
   match List.iter2 (fun a v -> Hashtbl.replace env (fst a) v) cur_fun.funargs vargs with
   | () ->
     eval_einstr cur_fun.funbody { st with env = env } ep oc sp cur_fun fun_typ struct_typ >>= fun (v, st') ->
-    OK (v, { st' with env = env_save })
+    OK (v, { st' with env = env_save }) 
   | exception Invalid_argument _ ->
     Error (Format.sprintf
              "E: Called function %s with %d arguments, expected %d.\n"
