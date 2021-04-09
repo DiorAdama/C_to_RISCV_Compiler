@@ -48,9 +48,14 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
       match Hashtbl.find_option cur_efun.funvarinmem v with 
         | None -> OK (Evar v)
         | Some offs -> 
-            type_expr e cur_efun.funvartyp fun_typ struct_typ >>= fun t ->
-            size_of_type struct_typ t >>= fun sz_t ->
-            OK (Eload (Estk offs, sz_t))
+            type_expr e cur_efun.funvartyp fun_typ struct_typ >>= fun t ->(
+              match t with 
+                | Tstruct _ -> OK (Eint offs)
+                | _ ->   
+                    type_expr e cur_efun.funvartyp fun_typ struct_typ >>= fun t ->
+                    size_of_type struct_typ t >>= fun sz_t ->
+                    OK (Eload (Estk offs, sz_t))
+            )
   )
 
   | Elang.Ecall (fname, fargs) -> 
@@ -62,7 +67,7 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
       List.fold_left f_fold (OK []) fargs >>= fun cfg_args -> 
         OK (Ecall (fname, cfg_args))
 
-  | Elang.Eaddrof eexpr -> (
+  | Elang.Eaddrof eexpr -> ( 
       match eexpr with 
         | Evar var_name -> (
               match Hashtbl.find_option cur_efun.funvarinmem var_name with 
@@ -90,6 +95,26 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
       type_expr eexpr cur_efun.funvartyp fun_typ struct_typ >>= fun t -> 
         match t with 
           | Tptr (Tstruct str_name) -> (
+              match eexpr with  
+                | Eaddrof (Evar v) -> 
+                    field_offset struct_typ str_name field >>= fun field_offs -> 
+                    field_type struct_typ str_name field >>= fun f_typ ->
+                    size_of_type struct_typ f_typ >>= fun sz_typ ->(
+                      match Hashtbl.find_option cur_efun.funvarinmem v with 
+                        | Some str_pos -> (
+                            match f_typ with 
+                              | Tstruct _ -> OK (Estk (str_pos + field_offs))
+                              | _ -> OK (Eload (Estk (str_pos + field_offs), sz_typ)))
+                        | None ->  
+                            OK (Eload (Ebinop (Eadd, Evar v, Eint field_offs), sz_typ))
+                      )  
+                        
+                | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
+              )
+          | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
+    )
+      (*
+
               cfg_expr_of_eexpr eexpr cur_efun fun_typ struct_typ >>= fun cfg_expr ->
                 match cfg_expr with 
                   | Estk str_pos ->
@@ -103,7 +128,7 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
           )
           | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
   )
-
+*)
 
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
    to the E instruction [i].

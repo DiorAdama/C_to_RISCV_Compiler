@@ -37,9 +37,16 @@ let rec eval_cfgexpr (e: expr) st cp oc (sp: int): (int* int Prog.state) res =
       
     | Estk i -> OK (sp+i, st)
     | Eload (e, sz) -> (
-        eval_cfgexpr e st cp oc sp >>= fun (addr, st) -> 
-        Mem.read_bytes_as_int st.mem addr sz >>= fun ans -> 
-          OK (ans, st)
+        match e with 
+          | Estk _ ->  
+              eval_cfgexpr e st cp oc sp >>= fun (addr, st) -> 
+              Mem.read_bytes_as_int st.mem addr sz >>= fun ans -> 
+                OK (ans, st)
+          | _ -> 
+              eval_cfgexpr e st cp oc sp >>= fun (addr, st) -> 
+              Mem.read_bytes_as_int st.mem (addr+sp) sz >>= fun ans -> 
+                OK (ans, st)
+
     )
 
 

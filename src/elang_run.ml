@@ -92,12 +92,12 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
       | Eaddrof eexpr -> (
             match eexpr with 
                | Evar var_name -> (
-                     match Hashtbl.find_option st.env var_name with
-                        | Some i -> OK (i, st)
-                        | _ -> (
-                           match Hashtbl.find_option cur_fun.funvarinmem var_name with 
-                              | Some offs -> OK (sp + offs, st)
-                              | None ->  Error "@elang_run.eval_eexpr: Variable not found")
+                  match Hashtbl.find_option cur_fun.funvarinmem var_name with 
+                     | Some offs -> OK (sp + offs, st) 
+                     | None -> (  
+                           match Hashtbl.find_option st.env var_name with
+                              | Some i -> OK (i, st)
+                              | _ -> Error "@elang_run.eval_eexpr: Variable not found")
                )
                | Eload ptr_expr -> 
                      eval_eexpr ptr_expr st ep oc sp cur_fun fun_typ struct_typ

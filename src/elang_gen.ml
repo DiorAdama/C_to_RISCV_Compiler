@@ -158,7 +158,7 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
                 rest_arg_types >>= fun rest_arg_types ->
                 type_expr arg_expr var_typ fun_typ struct_typ >>= fun t -> 
                   if t = (List.hd rest_arg_types) then 
-                    OK (List.tl rest_arg_types)
+                    OK (List.tl rest_arg_types) 
                   else
                     Error ("Wrong input datatype for function " ^ fname)
               ) (OK arg_types) arguments)
@@ -237,18 +237,16 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
       | Node (ttag, [_]) when (tag_is_typ ttag) -> (
           make_typ_of_ast a >>= fun (s, typ_s) -> 
           declare_var s typ_s var_typ >>= fun _ ->
-          match ttag with 
-            | Tvoid -> Error (Format.sprintf "variable '%s' declared void" s)
-            | _ ->  OK (Iassign (s, init_expr_of_tag ttag)) 
+          OK (Iassign (s, init_expr_of_tag ttag)) 
       )
 
       | Node (Tstruct, [StringLeaf str; StringLeaf str_name]) ->(
             match Hashtbl.find_option struct_typ str with 
-              | Some _ -> 
+              | Some ((field, _)::_) -> 
                   make_typ_of_ast a >>= fun (var_name, var_t) -> 
                   declare_var var_name var_t var_typ >>= fun _ -> 
-                    OK (Iassign (var_name, Eint 0))
-              | None -> Error (Format.sprintf "@elang_gen.make_einstr_of_ast: Can not find struct [%s] " str) 
+                    OK (Iassign (str_name, Eint 0))
+              | _ -> Error (Format.sprintf "@elang_gen.make_einstr_of_ast: Can not find struct [%s] " str) 
       )
 
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) ->( 
