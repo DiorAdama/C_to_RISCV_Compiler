@@ -50,7 +50,7 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
         | Some offs -> 
             type_expr e cur_efun.funvartyp fun_typ struct_typ >>= fun t ->(
               match t with 
-                | Tstruct _ -> OK (Eint offs)
+                | Tstruct _ -> OK (Estk offs)
                 | _ ->   
                     type_expr e cur_efun.funvartyp fun_typ struct_typ >>= fun t ->
                     size_of_type struct_typ t >>= fun sz_t ->
