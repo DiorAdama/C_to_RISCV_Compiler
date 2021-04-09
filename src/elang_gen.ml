@@ -245,7 +245,7 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
               | Some ((field, _)::_) -> 
                   make_typ_of_ast a >>= fun (var_name, var_t) -> 
                   declare_var var_name var_t var_typ >>= fun _ -> 
-                    OK (Iassign (str_name, Eint 0))
+                    OK (Iblock [])
               | _ -> Error (Format.sprintf "@elang_gen.make_einstr_of_ast: Can not find struct [%s] " str) 
       )
 

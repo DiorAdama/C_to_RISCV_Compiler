@@ -84,8 +84,7 @@ let mas_of_size n =
   | 1 -> OK MAS1
   | 4 -> OK MAS4
   | 8 -> OK MAS8
-  | _ -> OK MAS8
-  (*| _ -> Error (Printf.sprintf "Unknown memory access size for size = %d" n)*)
+  | _ -> Error (Printf.sprintf "Unknown memory access size for size = %d" n)
 
 
 let size_of_mas mas =
