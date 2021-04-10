@@ -44,9 +44,10 @@ axiom S
     match subtree with 
       | NullLeaf -> ident 
       | Node (Targs, argums) -> Node (Tcall, [ident; subtree]) 
-      | StringLeaf structfield -> Node( Tstructdata, [ident; subtree])
+      | Node(Tstructdata, [StringLeaf structfield]) -> Node( Tstructdata, [ident; StringLeaf structfield])
       | Node(Tstructdata, [field; ex]) -> Node (Tassign, [Node (Tassignvar, [Node(Tstructdata ,[ident; field]); ex])])
-      | _ -> Node (Tassign, [Node (Tassignvar, [ident; subtree])])
+      | Node(Tassign, [expr_node]) -> Node (Tassign, [Node (Tassignvar, [ident; expr_node])])
+      | _ -> assert false
 
   let rec resolve_ptr data_type ident is_declaration = 
     match data_type, ident with 
@@ -91,7 +92,7 @@ STRUCTDEF -> SYM_STRUCT IDENTIFIER SYM_LBRACE DATA_DECLS SYM_RBRACE SYM_SEMICOLO
 
 FUN_DECL -> SYM_INT REST_TYPE { resolve_ptr (Node(Tint,[])) $2 true}
 FUN_DECL -> SYM_CHAR REST_TYPE { resolve_ptr (Node(Tchar,[])) $2 true}
-FUN_DECL -> SYM_VOID REST_TYPE { Node(Tptr, [resolve_ptr (Node(Tvoid,[])) $2 true]) }
+FUN_DECL -> SYM_VOID REST_TYPE { resolve_ptr (Node(Tvoid,[])) $2 true }
 
 FUNDEF -> FUN_DECL SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS FUN_DEF_OR_DECL   
           { Node (Tfundef, [$1] @ [Node (Tfunargs, $3)] @ [Node (Tfunbody, $5)] ) }
@@ -135,12 +136,12 @@ INSTRS -> { [] }
 ELSE -> SYM_ELSE LINSTRS { [$2] }
 ELSE -> { [] }
 
-REST_IDENTIFIER_ASSIGN -> SYM_ASSIGN EXPR  { $2 } 
+REST_IDENTIFIER_ASSIGN -> SYM_ASSIGN EXPR  { Node(Tassign, [$2]) } 
 REST_IDENTIFIER_ASSIGN -> {NullLeaf}
 
 REST_IDENTIFIER_INSTR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
 REST_IDENTIFIER_INSTR -> SYM_POINT IDENTIFIER SYM_ASSIGN EXPR { Node(Tstructdata, [$2; $4]) }
-REST_IDENTIFIER_INSTR -> SYM_ASSIGN EXPR  { $2 } 
+REST_IDENTIFIER_INSTR -> SYM_ASSIGN EXPR  { Node( Tassign, [$2]) } 
 
 EXPR -> EQ_EXPR EQ_EXPRS  { resolve_associativity $1 $2 }
 EXPR -> CHARACTER {$1}
@@ -161,7 +162,7 @@ FACTOR -> SYM_ASTERISK IDENTIFIER  {Node(Tvalueat, [$2])}
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS   {$2}
 
 REST_IDENTIFIER_EXPR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
-REST_IDENTIFIER_EXPR -> SYM_POINT IDENTIFIER {$2}
+REST_IDENTIFIER_EXPR -> SYM_POINT IDENTIFIER {Node(Tstructdata, [$2])}
 REST_IDENTIFIER_EXPR -> { NullLeaf }
 
 

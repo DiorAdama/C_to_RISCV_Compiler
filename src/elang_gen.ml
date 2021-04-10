@@ -85,20 +85,21 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
     )
 
 
+let comp_typ t1 t2 = 
+  let int_comp = [Tint; Tchar] in 
+  match t1, t2 with 
+    | t1, t2 when t1 = t2 -> OK ()
+    | t1, t2 when (List.mem t1 int_comp && List.mem t2 int_comp) -> OK () 
+    | Tptr _, t when List.mem t int_comp  -> OK ()
+    | t, Tptr _ when List.mem t int_comp -> OK ()
+    | _ -> Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
 
 
-
-let comp_typ e1 e2 var_typ fun_typ struct_typ = 
-  let int_comp = [Tint; Tchar] in
+let comp_expr_typ e1 e2 var_typ fun_typ struct_typ = 
   type_expr e1 var_typ fun_typ struct_typ >>= fun t1 -> 
-    type_expr e2 var_typ fun_typ struct_typ >>= fun t2 ->(
-      match t1, t2 with 
-        | t1, t2 when t1 = t2 -> OK true
-        | t1, t2 when (List.mem t1 int_comp && List.mem t2 int_comp) -> OK true 
-        | Tptr _, t when List.mem t int_comp  -> OK true
-        | t, Tptr _ when List.mem t int_comp -> OK true
-        | _ -> Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
-    )
+  type_expr e2 var_typ fun_typ struct_typ >>= fun t2 ->
+  comp_typ t1 t2
+    
       
         
 
@@ -120,7 +121,7 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
       | Node(t, [e1; e2]) when tag_is_binop t ->( 
           make_eexpr_of_ast e1 var_typ fun_typ struct_typ >>= fun ex1 -> 
           make_eexpr_of_ast e2 var_typ fun_typ struct_typ >>= fun ex2 -> 
-            comp_typ ex1 ex2 var_typ fun_typ struct_typ >>= fun b -> 
+            comp_expr_typ ex1 ex2 var_typ fun_typ struct_typ >>= fun b -> 
               OK (Ebinop (binop_of_tag t, ex1, ex2))) 
               
       | Node (Tneg, [e]) ->( 
@@ -255,13 +256,13 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
             | Node(ttag, [_]) when (tag_is_typ ttag) -> 
                 make_typ_of_ast e1 >>= fun (s1, typ_s1) -> 
                 declare_var s1 typ_s1 var_typ >>= fun var1 -> 
-                  comp_typ var1 ex2 var_typ fun_typ struct_typ >>= fun b -> 
+                  comp_expr_typ var1 ex2 var_typ fun_typ struct_typ >>= fun b -> 
                     OK (Iassign (s1, ex2))
             
             | _ ->  
               make_eexpr_of_ast e1 var_typ fun_typ struct_typ >>= fun ex1 ->
               make_eexpr_of_ast e2 var_typ fun_typ struct_typ >>= fun ex2 -> 
-                comp_typ ex1 ex2 var_typ fun_typ struct_typ >>= fun b ->
+                comp_expr_typ ex1 ex2 var_typ fun_typ struct_typ >>= fun b ->
                   match ex1 with 
                     | Eload ptr -> OK (Istore (ptr, ex2))
                     | Egetfield (str_ex, field) -> OK (Isetfield (str_ex, field, ex2))

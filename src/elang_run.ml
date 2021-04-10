@@ -194,8 +194,10 @@ and eval_einstr (ins: instr) (st: int state) (ep) oc (sp: int)
          List.fold_left f_fold (OK (None, st)) instrs
       )
       | Ireturn ex ->(
-         eval_eexpr ex st ep oc sp cur_fun fun_typ struct_typ >>= fun (ex, st) ->
-            OK (Some ex, st)
+         type_expr ex cur_fun.funvartyp fun_typ struct_typ >>= fun ex_t -> 
+         comp_typ ex_t cur_fun.funrettyp >>= fun _ ->
+            eval_eexpr ex st ep oc sp cur_fun fun_typ struct_typ >>= fun (ans, st) ->
+               OK (Some ans, st)
       )
       | Icall ("print", argms) -> 
          let f_fold argums expri = (
