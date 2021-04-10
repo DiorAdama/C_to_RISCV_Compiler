@@ -374,7 +374,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation
 
   | Rstk (rd, offs) -> (
       store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
-      OK (LSubi (rd, reg_fp, numlocals - offs)::ld)
+      OK (LSubi (rd, reg_fp, (numlocals+numspilled)*(Archi.wordsize ()) - offs )::ld)
   )
 
   | Rload (rd, rs, sz) -> ( 
@@ -442,8 +442,8 @@ let ltl_fun_of_linear_fun linprog
   let prologue =
     List.concat (List.map make_push (Set.to_list callee_saved_regs)) @
     LMov (reg_fp, reg_sp) ::
-    make_sp_sub (numlocals * (Archi.wordsize())) @
     make_sp_sub (numspilled * (Archi.wordsize ())) @
+    make_sp_sub (numlocals * (Archi.wordsize())) @
     [LComment "end prologue"] in
   let epilogue = LLabel epilogue_label ::
                  LMov(reg_sp, reg_fp) ::
