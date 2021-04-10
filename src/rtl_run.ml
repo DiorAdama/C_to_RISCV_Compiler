@@ -96,7 +96,7 @@ let rec exec_rtl_instr oc rp rtlfunname f st (i: rtl_instr) (sp: int) =
   | Rcall (ret, "print_char", [reg_arg]) -> (
     match Hashtbl.find_option st.regs reg_arg with
     | Some s -> 
-        do_builtin oc st.mem "print" [s] >>= fun ans -> 
+        do_builtin oc st.mem "print_char" [s] >>= fun ans -> 
         OK (None, st)
     | None -> Error (Printf.sprintf "function %s called on an undefined register %s" "print_char" (print_reg reg_arg))
   )

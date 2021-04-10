@@ -63,16 +63,16 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
               let instr = Rbinop (binar, next_reg, r1, r2) in
                 (next_reg, l1 @ l2 @ [instr], next_reg+1, var2reg)
 
-      | Ecall (fname, cfg_expr_list) -> 
+      | Ecall (fname, cfg_expr_list) -> (
           
           let f_fold (regs, instrs, n_reg, varToReg) cfg_expri = 
-            let r, l, n_reg, varToreg = rtl_instrs_of_cfg_expr (n_reg, varToReg) cfg_expri in
+            let r, l, n_reg, varToReg = rtl_instrs_of_cfg_expr (n_reg, varToReg) cfg_expri in
               (regs @ [r], instrs @ l, n_reg, varToReg)
           in 
           let (regs, instrs, next_reg, var2reg) = List.fold_left f_fold ([], [], next_reg, var2reg) cfg_expr_list in 
           let call_instr = Rcall (Some next_reg, fname, regs) in 
           (next_reg, instrs @ [call_instr], next_reg+1, var2reg)
-
+      )
       | Estk offs -> (next_reg, [Rstk (next_reg, offs)], next_reg+1, var2reg)
       | Eload (cfg_expr, sz) -> 
           let r, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) cfg_expr in 
@@ -82,7 +82,6 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
     
 
     
-
 
 let is_cmp_op =
   function Eclt -> Some Rclt
@@ -180,6 +179,7 @@ let pass_rtl_gen cfg =
   OK rtl
 
   
+
 
 
   
