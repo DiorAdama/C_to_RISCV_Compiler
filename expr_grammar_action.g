@@ -6,6 +6,7 @@ tokens SYM_VOID SYM_INT SYM_CHAR
 tokens SYM_CHARACTER<char>
 tokens SYM_AMPERSAND 
 tokens SYM_STRUCT SYM_POINT
+tokens SYM_LBRACKET SYM_RBRACKET
 non-terminals S INSTR INSTRS LINSTRS ELSE EXPR FACTOR REST_IDENTIFIER_INSTR REST_IDENTIFIER_EXPR
 non-terminals LPARAMS REST_PARAMS
 non-terminals IDENTIFIER INTEGER
@@ -20,6 +21,7 @@ non-terminals FUN_DECL DATA_DECL REST_IDENTIFIER_ASSIGN FUN_DEF_OR_DECL
 non-terminals CHARACTER 
 non-terminals REST_TYPE
 non-terminals DATA_DECLS VOID_OR_POINTER
+non-terminals REST_DECL
 axiom S
 {
 
@@ -43,16 +45,20 @@ axiom S
   let resolve_identifier ident subtree = 
     match subtree with 
       | NullLeaf -> ident 
-      | Node (Targs, argums) -> Node (Tcall, [ident; subtree]) 
-      | Node(Tstructdata, [StringLeaf structfield]) -> Node( Tstructdata, [ident; StringLeaf structfield])
-      | Node(Tstructdata, [field; ex]) -> Node (Tassign, [Node (Tassignvar, [Node(Tstructdata ,[ident; field]); ex])])
       | Node(Tassign, [expr_node]) -> Node (Tassign, [Node (Tassignvar, [ident; expr_node])])
+      | Node (Targs, argums) -> Node (Tcall, [ident; subtree]) 
+      | Node(Tstructdata, [field]) -> Node( Tstructdata, [ident; field])
+      | Node(Tstructdata, [field; ex]) -> Node (Tassign, [Node (Tassignvar, [Node(Tstructdata ,[ident; field]); ex])])
+      | Node(Tarrayof, [index]) -> Node( Tarrayof, [ident; index])
+      | Node(Tarrayof, [index; ex]) -> Node(Tassign, [Node (Tassignvar, [Node(Tarrayof, [ident; index]); ex])])
       | _ -> assert false
 
   let rec resolve_ptr data_type ident is_declaration = 
     match data_type, ident with 
+
       | Node(Tstruct, [structname]), [StringLeaf s] when is_declaration -> Node(Tstruct, structname::ident)
       | Node(data_type, []), [StringLeaf s] when is_declaration -> Node(data_type, ident) 
+      | Node(data_type, []), [Node(Tarrayof, [ident; sz])] when is_declaration -> Node(data_type, [Node(Tarrayof, [ident; sz])])
       | _ , [StringLeaf s] when not is_declaration -> StringLeaf s
       | _ , Node(Tptr, [])::tl when is_declaration -> Node(Tptr, [resolve_ptr data_type tl is_declaration])
       | _ , Node(Tptr, [])::tl when not is_declaration -> Node(Tvalueat, [resolve_ptr data_type tl is_declaration])
@@ -75,9 +81,11 @@ DATA_DECL -> SYM_CHAR REST_TYPE { resolve_ptr (Node(Tchar,[])) $2 true}
 DATA_DECL -> SYM_VOID SYM_ASTERISK REST_TYPE { Node(Tptr, [resolve_ptr (Node(Tvoid, [])) $3 true])}
 DATA_DECL -> SYM_STRUCT IDENTIFIER REST_TYPE {resolve_ptr (Node(Tstruct, [$2])) $3 true}
 
-REST_TYPE -> IDENTIFIER {[$1]}
+REST_TYPE -> IDENTIFIER REST_DECL { [resolve_identifier $1 $2] }
 REST_TYPE -> SYM_ASTERISK REST_TYPE {Node(Tptr, [])::$2}
 
+REST_DECL -> {NullLeaf}
+REST_DECL -> SYM_LBRACKET EXPR SYM_RBRACKET { Node(Tarrayof, [$2])}
 
 
 GLOBDEFS -> GLOBDEF GLOBDEFS   { $1::$2 }
@@ -139,9 +147,10 @@ ELSE -> { [] }
 REST_IDENTIFIER_ASSIGN -> SYM_ASSIGN EXPR  { Node(Tassign, [$2]) } 
 REST_IDENTIFIER_ASSIGN -> {NullLeaf}
 
+REST_IDENTIFIER_INSTR -> SYM_ASSIGN EXPR  { Node( Tassign, [$2]) } 
 REST_IDENTIFIER_INSTR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
 REST_IDENTIFIER_INSTR -> SYM_POINT IDENTIFIER SYM_ASSIGN EXPR { Node(Tstructdata, [$2; $4]) }
-REST_IDENTIFIER_INSTR -> SYM_ASSIGN EXPR  { Node( Tassign, [$2]) } 
+REST_IDENTIFIER_INSTR -> SYM_LBRACKET EXPR SYM_RBRACKET SYM_ASSIGN EXPR {Node(Tarrayof, [$2; $5])}
 
 EXPR -> EQ_EXPR EQ_EXPRS  { resolve_associativity $1 $2 }
 EXPR -> CHARACTER {$1}
@@ -163,6 +172,7 @@ FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS   {$2}
 
 REST_IDENTIFIER_EXPR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
 REST_IDENTIFIER_EXPR -> SYM_POINT IDENTIFIER {Node(Tstructdata, [$2])}
+REST_IDENTIFIER_EXPR -> SYM_LBRACKET EXPR SYM_RBRACKET {Node(Tarrayof, [$2])}
 REST_IDENTIFIER_EXPR -> { NullLeaf }
 
 

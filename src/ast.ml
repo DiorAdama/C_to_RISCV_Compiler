@@ -35,6 +35,7 @@ type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
          | Targ 
          | Tampersand | Tvalueat | Taddrof
          | Tstruct | Tstructfields | Tstructdata
+         | Tarrayof  
 
 type tree = | Node of tag * tree list
             | StringLeaf of string
@@ -88,6 +89,7 @@ let string_of_tag = function
   | Tstruct -> "Tstruct"
   | Tstructfields -> "Tstructfields"
   | Tstructdata -> "Tstructdata"
+  | Tarrayof -> "Tarrayof"
 
 (* Écrit un fichier .dot qui correspond à un AST *)
 let rec draw_ast a next =
