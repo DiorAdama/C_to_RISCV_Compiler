@@ -20,13 +20,17 @@ let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_
   let cfgfunbody =
     Hashtbl.map (fun (n: int) (m: cfg_node) ->
         match m with
-          | Cassign (var, e, i) -> 
+          | Cassign (var, e, i) -> (
+            match e with 
+              | Ecall _ -> m 
+              | _ ->
               let b = Set.mem var (live_after_node f.cfgfunbody n lives) in
               changed := !changed || not b;
               if (b) 
                 then m
               else
                 Cnop i
+          )
           | _ -> m
       ) cfgfunbody in
   ({ f with cfgfunbody }, !changed )

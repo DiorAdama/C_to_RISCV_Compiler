@@ -7,6 +7,7 @@ type typ =
   | Tvoid
   | Tptr of typ
   | Tstruct of string
+  | Ttab of typ*int
 
 let rec string_of_typ = function 
   | Tint -> "int"
@@ -14,13 +15,14 @@ let rec string_of_typ = function
   | Tvoid -> "void"
   | Tptr ty -> (string_of_typ ty) ^ "*"
   | Tstruct s -> "struct " ^ s
+  | Ttab (t, n) -> Format.sprintf "%s[%d]" (string_of_typ t) n
 
 let rec size_of_type (struct_defs: (string, (string * typ) list) Hashtbl.t) = function 
   | Tint -> OK 8
   | Tchar -> OK 1
   | Tptr _ -> OK 8
   | Tvoid -> Error "Void does not have a size"
-  | Tstruct s -> 
+  | Tstruct s -> (
       match Hashtbl.find_option struct_defs s with
         | Some var_typ_list -> 
             List.fold_left (
@@ -31,6 +33,8 @@ let rec size_of_type (struct_defs: (string, (string * typ) list) Hashtbl.t) = fu
               ) (OK 0) var_typ_list
 
         | None -> Error ("@prog.size_of_type : Couldn't find struct " ^ s ^ " in struct_defs")
+  )
+  | Ttab (t, n) -> size_of_type struct_defs t >>= fun sz_t -> OK (sz_t*n)
   
 let field_offset (struct_defs: (string, (string * typ) list) Hashtbl.t) (s: string) (f: string): int res =
   match Hashtbl.find_option struct_defs s with 
@@ -85,7 +89,6 @@ let mas_of_size n =
   | 4 -> OK MAS4
   | 8 -> OK MAS8
   | _ -> Error (Printf.sprintf "Unknown memory access size for size = %d" n)
-
 
 let size_of_mas mas =
   match mas with

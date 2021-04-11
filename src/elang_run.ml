@@ -51,7 +51,8 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
                   | Some offs -> (
                         type_expr e cur_fun.funvartyp fun_typ struct_typ >>= fun t ->
                         match t with 
-                           | Tstruct _ -> OK (sp + offs, st)
+                           | Tstruct _ 
+                           | Ttab _ -> OK (sp + offs, st)
                            | _ ->   
                               size_of_type struct_typ t >>= fun sz_t ->
                               Mem.read_bytes_as_int st.mem (sp+offs) sz_t >>= fun ans -> OK (ans, st)
@@ -76,6 +77,12 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
                         size_of_type struct_typ ty >>= fun sz_ty ->
                         OK (eval_binop binary (x*sz_ty) y, st)
                            
+                  | Ttab (ty, _), int_t when List.mem int_t [Tint; Tchar] -> 
+                        size_of_type struct_typ ty >>= fun sz_ty ->
+                        OK (eval_binop binary x (y*sz_ty), st)
+                  | int_t, Ttab (ty, _) when List.mem int_t [Tint; Tchar] -> 
+                        size_of_type struct_typ ty >>= fun sz_ty ->
+                        OK (eval_binop binary (x*sz_ty) y, st)
                   | _, _ ->  OK (eval_binop binary x y, st)
       )
       | Ecall (fname, argms) -> 
@@ -126,7 +133,8 @@ let rec eval_eexpr (e : expr) st (ep) oc (sp: int)
                      field_offset struct_typ str_name field >>= fun field_offs -> 
                      field_type struct_typ str_name field >>= fun f_typ ->(
                         match f_typ with 
-                           | Tstruct _ -> OK ( str_pos + field_offs, st)
+                           | Tstruct _ 
+                           | Ttab _ -> OK ( str_pos + field_offs, st)
                            | _ -> 
                                  size_of_type struct_typ f_typ >>= fun sz_ptr_t ->
                                  Mem.read_bytes_as_int st.mem ( str_pos + field_offs) sz_ptr_t >>= fun ans -> 
@@ -213,6 +221,8 @@ and eval_einstr (ins: instr) (st: int state) (ep) oc (sp: int)
          eval_eexpr arg st ep oc sp cur_fun fun_typ struct_typ >>= fun (ans, st) -> 
          do_builtin oc st.mem "print_char" [ans] >>= fun ans -> 
             OK (ans, st)
+
+      | Icall ("print_int", argms) -> eval_einstr (Icall ("print", argms)) st ep oc sp cur_fun fun_typ struct_typ
       
       | Icall (fname, argms) ->(
             let f_fold argums expri = (
@@ -322,4 +332,5 @@ let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
   let params = take n params in
   eval_efun st f "main" params efuns oc memsize fun_typ struct_type >>= fun (v, st) ->
   OK v
+
 

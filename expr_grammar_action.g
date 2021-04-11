@@ -57,8 +57,10 @@ axiom S
     match data_type, ident with 
 
       | Node(Tstruct, [structname]), [StringLeaf s] when is_declaration -> Node(Tstruct, structname::ident)
+      | Node(Tstruct, [structname]), [Node(Tarrayof, [ident; sz])] when is_declaration -> 
+            Node(Tarrayof, [ident; data_type; sz])
       | Node(data_type, []), [StringLeaf s] when is_declaration -> Node(data_type, ident) 
-      | Node(data_type, []), [Node(Tarrayof, [ident; sz])] when is_declaration -> Node(data_type, [Node(Tarrayof, [ident; sz])])
+      | Node(data_type, []), [Node(Tarrayof, [ident; sz])] when is_declaration -> Node(Tarrayof, [ident; Node(data_type,[]); sz])
       | _ , [StringLeaf s] when not is_declaration -> StringLeaf s
       | _ , Node(Tptr, [])::tl when is_declaration -> Node(Tptr, [resolve_ptr data_type tl is_declaration])
       | _ , Node(Tptr, [])::tl when not is_declaration -> Node(Tvalueat, [resolve_ptr data_type tl is_declaration])

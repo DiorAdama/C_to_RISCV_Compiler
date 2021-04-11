@@ -91,6 +91,7 @@ let string_of_tag = function
   | Tstructdata -> "Tstructdata"
   | Tarrayof -> "Tarrayof"
 
+  
 (* Écrit un fichier .dot qui correspond à un AST *)
 let rec draw_ast a next =
   match a with

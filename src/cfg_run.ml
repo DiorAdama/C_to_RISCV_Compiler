@@ -63,12 +63,17 @@ and eval_cfginstr oc st ht (n: int) cp (sp: int): (int * int state) res=
           | Creturn(e) ->
               eval_cfgexpr e st cp oc sp >>= fun (e, st) ->
               OK (e, st)
-          (*
+(*
           | Cprint(e, succ) ->
               eval_cfgexpr e st cp oc >>= fun (e, st) ->
               Format.fprintf oc "%d\n" e;
               eval_cfginstr oc st ht succ cp
 *)
+          | Ccall ("print_int", [c], succ) -> 
+              eval_cfgexpr c st cp oc sp >>= fun (c, st) ->
+              do_builtin oc st.mem "print_int" [c]  >>= fun ans -> 
+                eval_cfginstr oc st ht succ cp sp
+
           | Ccall ("print", pargs, succ) -> 
               let f_fold argums expri = (
                 argums >>= fun (argums, sti) ->
@@ -83,6 +88,7 @@ and eval_cfginstr oc st ht (n: int) cp (sp: int): (int * int state) res=
               eval_cfgexpr c st cp oc sp >>= fun (c, st) ->
               do_builtin oc st.mem "print_char" [c]  >>= fun ans -> 
                 eval_cfginstr oc st ht succ cp sp
+          
                 
           | Ccall (fname, fargs, succ) -> 
               let f_fold argums expri = (

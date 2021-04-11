@@ -68,6 +68,8 @@ let rec type_expr (e : expr) (var_typ : (string, typ) Hashtbl.t) (fun_typ : (str
             match typ1, typ2 with  
               | Tptr _ , _ -> OK typ1 
               | _ , Tptr _ -> OK typ2 
+              | Ttab (t, _), _ 
+              | _, Ttab (t, _) -> OK (Tptr t)
               | _ -> OK typ1 
     )
     | Eaddrof ex -> type_expr ex var_typ fun_typ struct_typ >>= fun ex_t -> OK (Tptr ex_t)
@@ -92,6 +94,10 @@ let comp_typ t1 t2 =
     | t1, t2 when (List.mem t1 int_comp && List.mem t2 int_comp) -> OK () 
     | Tptr _, t when List.mem t int_comp  -> OK ()
     | t, Tptr _ when List.mem t int_comp -> OK ()
+    | Tptr ta, Ttab (tb,_) when ta = tb -> OK ()
+    | Ttab (ta, _), Tptr tb when ta=tb -> OK ()
+    | Ttab _, t when List.mem t int_comp  -> OK ()
+    | t, Ttab _ when List.mem t int_comp -> OK ()
     | _ -> Error ("Type "^( string_of_typ t1) ^ " and type " ^ ( string_of_typ t2) ^ " are incompatible")
 
 
@@ -101,7 +107,6 @@ let comp_expr_typ e1 e2 var_typ fun_typ struct_typ =
   comp_typ t1 t2
     
       
-        
 
 
 (* [make_eexpr_of_ast a] builds an expression corresponding to a tree [a]. If
@@ -158,10 +163,8 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
               (List.fold_left (fun rest_arg_types arg_expr -> 
                 rest_arg_types >>= fun rest_arg_types ->
                 type_expr arg_expr var_typ fun_typ struct_typ >>= fun t -> 
-                  if t = (List.hd rest_arg_types) then 
+                  comp_typ t  (List.hd rest_arg_types) >>= fun _ ->
                     OK (List.tl rest_arg_types) 
-                  else
-                    Error ("Wrong input datatype for function " ^ fname)
               ) (OK arg_types) arguments)
           >>= fun valid_input ->
           OK (Ecall (fname, arguments))
@@ -175,6 +178,23 @@ let rec make_eexpr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_typ
             | _ -> Error "@elang_gen.make_eexpr_of_ast : can not get field of non-struct variable"
       )
 
+      | Node (Tarrayof, [arr; index]) -> (
+            make_eexpr_of_ast arr var_typ fun_typ struct_typ >>= fun arr_ex -> 
+            make_eexpr_of_ast index var_typ fun_typ struct_typ >>= fun index_ex -> 
+              type_expr arr_ex var_typ fun_typ struct_typ >>= fun arr_ty -> 
+              type_expr index_ex var_typ fun_typ struct_typ >>= fun index_ty -> 
+                comp_typ index_ty Tint >>= fun _ -> (
+                  match arr_ty with 
+                    | Ttab _ 
+                    | Tptr _ -> (
+                        match index_ty with 
+                          | Tstruct _ 
+                          | Ttab _ -> OK (Ebinop (Eadd, arr_ex, index_ex)) 
+                          | _ -> OK (Eload (Ebinop (Eadd, arr_ex, index_ex)))
+                    )
+                    | _ -> Error ("@elang_gen.make_eexpr_of_ast: expected an array or a pointer but got " ^ (string_of_typ arr_ty))
+                )
+      )
       | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
                       (string_of_ast a))
   in
@@ -206,6 +226,7 @@ let rec make_typ_of_ast (a : Ast.tree) =
   match a with 
     | Node(ttag, [StringLeaf s]) when (tag_is_typ ttag && ttag <> Ast.Tptr) -> OK (s, typ_of_tag ttag)
     | Node(Tstruct, [StringLeaf str; StringLeaf str_name]) -> OK (str_name, Tstruct str)
+    | Node (Tarrayof, [StringLeaf tab; Node(ttag, []); IntLeaf sz]) -> OK (tab, Ttab (typ_of_tag ttag, sz))
     | Node(Tptr, [tl]) -> 
         make_typ_of_ast tl >>= fun (s, t) ->
           OK (s, Tptr t)
@@ -249,6 +270,19 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
                     OK (Iblock [])
               | _ -> Error (Format.sprintf "@elang_gen.make_einstr_of_ast: Can not find struct [%s] " str) 
       )
+
+      | Node (Tarrayof, [StringLeaf tabname; tabi; IntLeaf sz]) -> (
+            match tabi with 
+              | Node(ttag, []) when tag_is_typ ttag -> 
+                  make_typ_of_ast a >>= fun (tabname, tab_t) ->
+                  declare_var tabname tab_t  var_typ >>= fun _ -> 
+                    OK (Iblock [])
+              | Node(Tstruct, [StringLeaf structname]) -> 
+                  declare_var tabname (Ttab (Tstruct structname, sz)) var_typ >>= fun _ -> 
+                    OK (Iblock [])
+              | _ -> Error "@elang_gen.make_einstr_of_ast: Can not compile array of the given data type" 
+      )
+
 
       | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) ->( 
         make_eexpr_of_ast e2 var_typ fun_typ struct_typ >>= fun ex2 -> 
@@ -389,9 +423,10 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
         make_einstr_of_ast fblock var_typ fun_typ struct_typ >>= fun fblock ->
 
         let stk_scalar_vars = addr_taken_instr fblock in 
-        let stk_struct_vars = (Hashtbl.fold (fun k v ans -> 
+        let stk_struct_array_vars = (Hashtbl.fold (fun k v ans -> 
           match v with 
             | Prog.Tstruct _ -> if (List.mem k arg_vars) then ans else Set.add k ans
+            | Ttab _ -> Set.add k ans
             | _ -> ans
         ) var_typ Set.empty) in
         
@@ -401,7 +436,7 @@ let make_fundef_of_ast (a: tree) (fun_typ : (string, typ list * typ) Hashtbl.t )
           match Hashtbl.find_option var_typ var_i with 
             | Some t -> size_of_type struct_typ t >>= fun sz_t -> OK (sz+sz_t)
             | None -> Error "@elang_gen.make_fundef_of_ast: variable not found in var_typ"
-        ) (Set.union stk_scalar_vars stk_struct_vars) (OK 0) >>= fun sz ->
+        ) (Set.union stk_scalar_vars stk_struct_array_vars) (OK 0) >>= fun sz ->
 
           OK (Some (fname, {
             funargs= fargs;

@@ -76,13 +76,22 @@ let rec exec_linear_instr oc lp fname f st (i: rtl_instr) (sp: int)=
     OK (None, st)
 )
 
-| Rcall (ret, "print_char", [reg_arg]) -> (
+  | Rcall (ret, "print_char", [reg_arg]) -> (
     match Hashtbl.find_option st.regs reg_arg with
     | Some s -> 
         do_builtin oc st.mem "print_char" [s] >>= fun ans -> 
         OK (None, st)
     | None -> Error (Printf.sprintf "@ linear_run: function %s called on an undefined register %s" "print_char" (print_reg reg_arg))
   )
+
+  | Rcall (ret, "print_int", [reg_arg]) -> (
+      match Hashtbl.find_option st.regs reg_arg with
+      | Some s -> 
+          do_builtin oc st.mem "print_int" [s] >>= fun ans -> 
+          OK (None, st)
+      | None -> Error (Printf.sprintf "@ linear_run: function %s called on an undefined register %s" "print_char" (print_reg reg_arg))
+  )
+
 
   | Rcall (ret, fname, reg_args) -> (
     let f_fold arg_val_list reg_argi = 

@@ -33,6 +33,14 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
             | int_t, Tptr ty when List.mem int_t [Tint; Tchar] -> 
                   size_of_type struct_typ ty >>= fun sz_ty ->
                   OK (Ebinop (b, Ebinop (Emul, cfg_e1, Eint sz_ty), cfg_e2))
+            
+            | Ttab (ty,_) , int_t when List.mem int_t [Tint; Tchar] -> 
+                  size_of_type struct_typ ty >>= fun sz_ty ->
+                  OK ( Ebinop (b, cfg_e1, Ebinop (Emul, cfg_e2, Eint sz_ty)))
+                    
+            | int_t, Ttab(ty,_) when List.mem int_t [Tint; Tchar] -> 
+                  size_of_type struct_typ ty >>= fun sz_ty ->
+                  OK (Ebinop (b, Ebinop (Emul, cfg_e1, Eint sz_ty), cfg_e2))
                       
             | _, _ ->  OK (Ebinop (b, cfg_e1, cfg_e2))
   )
@@ -50,7 +58,8 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
         | Some offs -> 
             type_expr e cur_efun.funvartyp fun_typ struct_typ >>= fun t ->(
               match t with 
-                | Tstruct _ -> OK (Estk offs)
+                | Tstruct _ 
+                | Ttab _ -> OK (Estk offs)
                 | _ ->   
                     type_expr e cur_efun.funvartyp fun_typ struct_typ >>= fun t ->
                     size_of_type struct_typ t >>= fun sz_t ->
@@ -103,10 +112,14 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) (cur_efun: efun) (fun_typ : (string, t
                       match Hashtbl.find_option cur_efun.funvarinmem v with 
                         | Some str_pos -> (
                             match f_typ with 
-                              | Tstruct _ -> OK (Estk (str_pos + field_offs))
+                              | Tstruct _  
+                              | Ttab _ -> OK (Estk (str_pos + field_offs))
                               | _ -> OK (Eload (Estk (str_pos + field_offs), sz_typ)))
                         | None ->  
-                            OK (Eload (Ebinop (Eadd, Evar v, Eint field_offs), sz_typ))
+                            match f_typ with 
+                              | Tstruct _ 
+                              | Ttab _ -> OK (Ebinop (Eadd, Evar v, Eint field_offs))
+                              | _ -> OK (Eload (Ebinop (Eadd, Evar v, Eint field_offs), sz_typ))
                       )  
                         
                 | _ -> Error "@cfg_gen.cfg_expr_of_eexpr: Can not get field from a non struct pointer variable"
