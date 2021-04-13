@@ -45,12 +45,12 @@ axiom S
   let resolve_identifier ident subtree = 
     match subtree with 
       | NullLeaf -> ident 
-      | Node(Tassign, [expr_node]) -> Node (Tassign, [Node (Tassignvar, [ident; expr_node])])
+      | Node(Tassign, [expr_node]) -> Node (Tassign, [ident; expr_node])
       | Node (Targs, argums) -> Node (Tcall, [ident; subtree]) 
       | Node(Tstructdata, [field]) -> Node( Tstructdata, [ident; field])
-      | Node(Tstructdata, [field; ex]) -> Node (Tassign, [Node (Tassignvar, [Node(Tstructdata ,[ident; field]); ex])])
+      | Node(Tstructdata, [field; ex]) -> Node (Tassign, [Node(Tstructdata ,[ident; field]); ex])
       | Node(Tarrayof, [index]) -> Node( Tarrayof, [ident; index])
-      | Node(Tarrayof, [index; ex]) -> Node(Tassign, [Node (Tassignvar, [Node(Tarrayof, [ident; index]); ex])])
+      | Node(Tarrayof, [index; ex]) -> Node(Tassign, [Node(Tarrayof, [ident; index]); ex])
       | _ -> assert false
 
   let rec resolve_ptr data_type ident is_declaration = 
@@ -132,13 +132,10 @@ FUNCALL_REST_PARAMS -> { [] }
 INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS LINSTRS ELSE  { Node (Tif, ([$3] @ [$5] @ $6)) }
 INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR {Node (Twhile, ([$3] @ [$5]) )}
 INSTR -> SYM_RETURN EXPR SYM_SEMICOLON  { Node (Treturn, [$2]) }
-INSTR -> IDENTIFIER REST_IDENTIFIER_INSTR SYM_SEMICOLON { resolve_identifier $1 $2 }
-INSTR -> SYM_LPARENTHESIS IDENTIFIER SYM_POINT IDENTIFIER SYM_RPARENTHESIS SYM_LBRACKET EXPR SYM_RBRACKET SYM_ASSIGN EXPR SYM_SEMICOLON
-          {Node(Tassign, [Node(Tassignvar, [Node(Tarrayof, [Node(Tstructdata, [$2; $4]); $7]); $10])])}
-INSTR -> DATA_DECL REST_IDENTIFIER_ASSIGN SYM_SEMICOLON {resolve_identifier $1 $2}
-INSTR -> SYM_ASTERISK REST_TYPE SYM_ASSIGN EXPR SYM_SEMICOLON 
-          { Node(Tassign, [Node(Tassignvar, [Node(Tvalueat, [resolve_ptr (Node(Tvoid,[])) $2 false]); $4])])} 
+INSTR -> EXPR REST_IDENTIFIER_ASSIGN SYM_SEMICOLON { $2 $1 }
+INSTR -> DATA_DECL REST_IDENTIFIER_ASSIGN SYM_SEMICOLON { $2 $1 }
 INSTR -> LINSTRS { $1 }
+
 
 LINSTRS -> SYM_LBRACE INSTRS SYM_RBRACE   { Node (Tblock, $2) }
 
@@ -148,14 +145,16 @@ INSTRS -> { [] }
 ELSE -> SYM_ELSE LINSTRS { [$2] }
 ELSE -> { [] }
 
-REST_IDENTIFIER_ASSIGN -> SYM_ASSIGN EXPR  { Node(Tassign, [$2]) } 
-REST_IDENTIFIER_ASSIGN -> {NullLeaf}
+REST_IDENTIFIER_ASSIGN -> SYM_ASSIGN EXPR  { fun ident -> Node(Tassign, [ident; $2]) } 
+REST_IDENTIFIER_ASSIGN -> {fun ex -> ex}
 
 
-REST_IDENTIFIER_INSTR -> SYM_ASSIGN EXPR  { Node( Tassign, [$2]) } 
-REST_IDENTIFIER_INSTR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
-REST_IDENTIFIER_INSTR -> SYM_POINT IDENTIFIER SYM_ASSIGN EXPR { Node(Tstructdata, [$2; $4]) }
-REST_IDENTIFIER_INSTR -> SYM_LBRACKET EXPR SYM_RBRACKET SYM_ASSIGN EXPR {Node(Tarrayof, [$2; $5])}
+REST_IDENTIFIER_INSTR -> SYM_ASSIGN EXPR  { fun ident -> Node( Tassign, [ident; $2]) } 
+REST_IDENTIFIER_INSTR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { fun ident -> Node(Tcall, [ident; Node(Targs,$2)]) } 
+REST_IDENTIFIER_INSTR -> SYM_POINT IDENTIFIER SYM_ASSIGN EXPR 
+                        { fun ident -> Node(Tassign, [Node(Tstructdata, [ident; $2]); $4])}
+REST_IDENTIFIER_INSTR -> SYM_LBRACKET EXPR SYM_RBRACKET SYM_ASSIGN EXPR 
+                        {fun ident -> Node(Tassign, [Node(Tarrayof, [ident; $2]); $5])}
 
 EXPR -> EQ_EXPR EQ_EXPRS  { resolve_associativity $1 $2 }
 EXPR -> CHARACTER {$1}
@@ -170,18 +169,20 @@ ADD_EXPRS -> { [] }
 MUL_EXPR -> FACTOR { $1 }
 
 FACTOR -> INTEGER {$1}
-FACTOR -> IDENTIFIER REST_IDENTIFIER_EXPR { resolve_identifier $1 $2 }
+FACTOR -> IDENTIFIER REST_IDENTIFIER_EXPR { $2 $1 }
 FACTOR -> SYM_AMPERSAND IDENTIFIER { Node(Taddrof, [$2]) }
-FACTOR -> SYM_ASTERISK IDENTIFIER  {Node(Tvalueat, [$2])}
+FACTOR -> SYM_ASTERISK FACTOR  {Node(Tvalueat, [$2])}
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS REST_FACTOR {$4 $2}
 
 REST_FACTOR -> {fun ex -> ex}
 REST_FACTOR -> SYM_LBRACKET EXPR SYM_RBRACKET {fun ex -> Node(Tarrayof, [ex; $2])}
+REST_FACTOR -> SYM_POINT IDENTIFIER {fun ex -> Node(Tstructdata, [ex; $2])}
 
-REST_IDENTIFIER_EXPR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS { Node(Targs, $2) } 
-REST_IDENTIFIER_EXPR -> SYM_POINT IDENTIFIER {Node(Tstructdata, [$2])}
-REST_IDENTIFIER_EXPR -> SYM_LBRACKET EXPR SYM_RBRACKET {Node(Tarrayof, [$2])}
-REST_IDENTIFIER_EXPR -> { NullLeaf }
+REST_IDENTIFIER_EXPR -> SYM_LPARENTHESIS FUNCALL_LPARAMS SYM_RPARENTHESIS 
+                      { fun ident -> Node(Tcall, [ident; Node(Targs,$2)]) } 
+REST_IDENTIFIER_EXPR -> SYM_LBRACKET EXPR SYM_RBRACKET {fun ex -> Node(Tarrayof, [ex; $2])}
+REST_IDENTIFIER_EXPR -> SYM_POINT IDENTIFIER {fun ex -> Node(Tstructdata, [ex; $2])}
+REST_IDENTIFIER_EXPR -> { fun ex -> ex }
 
 
 MUL_EXPRS -> SYM_ASTERISK MUL_EXPR MUL_EXPRS  { (Node (Tmul, [$2]))::$3 }
