@@ -284,7 +284,7 @@ let rec make_einstr_of_ast (a: tree) (var_typ : (string, typ) Hashtbl.t) (fun_ty
       )
 
 
-      | Node (Tassign, [Node (Tassignvar, [e1; e2] )]) ->( 
+      | Node (Tassign, [e1; e2]) ->( 
         make_eexpr_of_ast e2 var_typ fun_typ struct_typ >>= fun ex2 -> 
           match e1 with 
             | Node(ttag, [_]) when (tag_is_typ ttag) -> 
@@ -507,3 +507,14 @@ let pass_elang ast =
 
 
 
+
+
+        (*
+        
+        INSTR -> SYM_ASTERISK REST_TYPE SYM_ASSIGN EXPR SYM_SEMICOLON 
+          { Node(Tassign, [Node(Tassignvar, [Node(Tvalueat, [resolve_ptr (Node(Tvoid,[])) $2 false]); $4])])} 
+        
+        INSTR -> SYM_LPARENTHESIS IDENTIFIER SYM_POINT IDENTIFIER SYM_RPARENTHESIS SYM_LBRACKET EXPR SYM_RBRACKET SYM_ASSIGN EXPR SYM_SEMICOLON
+          {Node(Tassign, [Node(Tassignvar, [Node(Tarrayof, [Node(Tstructdata, [$2; $4]); $7]); $10])])}
+
+        *)
